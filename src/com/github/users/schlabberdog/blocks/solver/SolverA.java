@@ -13,10 +13,11 @@ import java.util.Stack;
 public class SolverA {
     private Board board;
     private ISolutionChecker checker;
-    long checks;
+    long checkCount;
     int solutionCount;
     int solutionImprovedCount;
-    int minPathLength = Integer.MAX_VALUE;
+    int minPathLength;
+	int worstStack;
 
     /* In dem Array bewahren wir uns alle Schritte auf, die wir gemacht haben */
     private LeveledSteps steps = new LeveledSteps();
@@ -28,85 +29,37 @@ public class SolverA {
         this.checker = checker;
     }
 
-    public Stack<Backtrack> getSaveStack() {
-        return btStack;
-    }
-
-
     public void startSolve() {
         steps.clear();
         btStack.clear();
-        checks = 0;
+        checkCount = 0;
         solutionCount = 0;
         solutionImprovedCount = -1;
+	    worstStack = 0;
+	    minPathLength = Integer.MAX_VALUE;
         //ausgangssituation auf level 0 (ungschlagbar)
         steps.pushOnLevel(board.getBoardHash(),0);
         //um das ganze anzustoßen müssen wir zuerst die alternativen für Schritt 0 aufstellen
         goDeeper();
-        //jetzt können wir uns am lösen versuchen
 
         while(true) {
-            //prüfen wir, ob das was wir haben eine lösung ist
-            checks++;
-            if(checker.checkBoard(board)) {
-                solutionCount++;
-
-                int solSize = (btStack.size() - 1);
-
-                //wenn das hier eine versuchte alternative ist müssen wir noch eins tiefer gehen
-                if(btStack.peek().selected != null) {
-                    //goDeeper();
-                    solSize++;
-                }
-
-                //uns interessieren nur lösungen, die besser sind als bereits bekannte
-                if(solSize < minPathLength) { //-1 ist notwendig weil die ausgangsposition auch auf dem stack liegt
-                    System.out.println("<(Better) Solution Found in: "+solSize+" moves> (tried: "+checks+")(solutions: "+solutionCount+")");
-                    board.print(System.out);
-                    System.out.println("== Steps =========================");
-                    solutionImprovedCount++;
-                    minPathLength = solSize;
-                    BoardSave save = board.getSave();
-                    board.applySave(btStack.get(0).initialState);
-                    board.print(System.out);
-                    for (int i = 0; i < btStack.size(); i++) {
-                        if(btStack.get(i).selected != null) {
-                            board.applyMove(btStack.get(i).selected);
-                            System.out.println(String.format("%4d: %s",(i+1),btStack.get(i).selected));
-                            board.print(System.out);
-                        } else {
-                            board.applySave(btStack.get(i).initialState);
-                            System.out.println(String.format("%4d: NSL",(i+1)));
-                            board.print(System.out);
-                        }
-                    }
-                    board.applySave(save);
-                }
-            }
-            //nein, ist es nicht.
-            goAnywhere();
+	        //solange wir noch alternativen haben...
+	        if (!goAnywhere())
+		        break;
         }
+	    System.out.println("***");
+	    System.out.println("Worst Stack Depth: "+worstStack);
+	    System.out.println("Solutions found: "+solutionCount);
+	    System.out.println("Boards checked: "+checkCount);
+	    System.out.println("Solution improved "+solutionImprovedCount+" times");
+	    System.out.println("Best solution: "+minPathLength+" steps");
 
     }
 
+    private boolean goAnywhere() {
 
-    public int getSolutionCount() {
-        return solutionCount;
-    }
-
-    public int getSolutionImprovedCount() {
-        return solutionImprovedCount;
-    }
-
-    public int getBestPathLength() {
-        return minPathLength;
-    }
-
-
-    private void goAnywhere() {
-        //System.out.println("goAnywhere");
         if(btStack.isEmpty())
-            throw new RuntimeException("Alle Varianten versucht, keine (weitere) Lösung gefunden!");
+            return false;
         // vielleicht haben wir auf dieser ebene noch alternativen?
         if(btStack.peek().alternatives.size() > 0) {
 
@@ -118,24 +71,21 @@ public class SolverA {
             goUp();
 
         }
-
+		return true;
     }
 
     private void goRight() {
-        //System.out.println("goRight");
-        //System.out.println("-> RIGHT");
+
         //nach rechts gehen bedeutet:
         Backtrack cur = btStack.peek();
         // 1. board zum anfangswert dieses stack-levels resetten
-        //System.out.print("NEXT -> ");
+
         board.applySave(cur.initialState);
-        //System.out.println("B: "+board.getBoardHash());
+
         // 2. alternative anwenden und verwerfen
         IMove m = cur.alternatives.get(0);
         cur.alternatives.remove(0);
-        //System.out.println("Board before apply:");
-        //board.print(System.out);
-        //System.out.println("ALT: [S: "+btStack.size()+"] [A: "+cur.alternatives.size()+"] "+m);
+
         String bkMov = m.toString();
         try {
 
@@ -150,21 +100,44 @@ public class SolverA {
             System.out.println(bkMov);
             throw e;
         }
-        cur.selected = m;
 
-        //System.out.println("**");
+	    cur.selected = m;
 
-        //System.out.println("A: "+board.getBoardHash());
-        //steps.pushOnLevel(board.getBoardHash(), btStack.size()+1);
 
         goDeeper();
     }
 
+	private void checkSolution() {
+		//prüfen wir, ob das was wir haben eine lösung ist
+		checkCount++;
+		if(checker.checkBoard(board)) {
+			solutionCount++;
+
+			int solSize = (btStack.size() - 1);
+
+			//uns interessieren nur lösungen, die besser sind als bereits bekannte
+			if(solSize < minPathLength) { //-1 ist notwendig weil die ausgangsposition auch auf dem stack liegt
+				System.out.println("<(Better) Solution Found in: "+solSize+" moves> (tried: "+ checkCount +")(solutions: "+solutionCount+")");
+				solutionImprovedCount++;
+				minPathLength = solSize;
+				BoardSave save = board.getSave();
+
+				for (int i = 0; i < btStack.size(); i++) {
+
+						board.applySave(btStack.get(i).initialState);
+					if(i > 0)
+						System.out.println(String.format("%4d: %s",i,btStack.get(i-1).selected));
+						board.print(System.out);
+
+				}
+				board.applySave(save);
+			}
+		}
+	}
+
 
     private void goDeeper() {
-        //System.out.println("goDeeper");
 
-        //System.out.println("vv goDeeper()");
         //sicherung machen
         BoardSave save = board.getSave();
 
@@ -198,7 +171,6 @@ public class SolverA {
                     if(merged != null) {
                         board.applyMove(merged);
                         nextHash = board.getBoardHash();
-                        //System.out.println("PRV ADD ALT: [S: "+btStack.size()+"]"+merged);
                         btStack.peek().alternatives.add(merged);
                         steps.pushOnLevel(nextHash, btStack.size());
                         mi.remove();
@@ -216,35 +188,23 @@ public class SolverA {
             board.applySave(save);
         }
 
-        //wenn jetzt noch was übrig geblieben ist:
-   //     if(alts.size() > 0 ) {
-            //System.out.println(">> Board:");
-            //board.print(System.out);
-            //System.out.println(">> Alt:");
-            //for (IMove alt : alts) {
-            //    System.out.println(alt);
-            //}
+
             // 3. board sichern, alternativen hinzufügen und hash speichern
             btStack.push(new Backtrack(save,alts));
-            //System.out.println("[S: "+btStack.size()+"] ++");
-    //    }
+
+	        //lösung prüfen?
+	        checkSolution();
+
+			if(btStack.size() > worstStack)
+				worstStack = btStack.size();
 
     }
 
     private void goUp() {
-        //System.out.println("goUp");
-        //System.out.println("^^ UP [S: "+btStack.size()+"]");
-        //nach oben gehen bedeutet:
+
         // 1. aktuellen stack verwerfen
         btStack.pop();
 
-        //System.out.print("UP   -> ");
-        //goAnywhere();
-
-    }
-
-    public long getCheckCount() {
-        return checks;
     }
 
 
