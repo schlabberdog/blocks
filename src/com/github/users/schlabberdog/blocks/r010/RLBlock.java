@@ -4,8 +4,8 @@ import com.github.users.schlabberdog.blocks.board.Block;
 import com.github.users.schlabberdog.blocks.board.Board;
 import com.github.users.schlabberdog.blocks.board.moves.IMove;
 import com.github.users.schlabberdog.blocks.board.moves.Move;
+import com.github.users.schlabberdog.blocks.mccs.Coord;
 import com.github.users.schlabberdog.blocks.mccs.Rect;
-import com.github.users.schlabberdog.blocks.mccs.RectSet;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -19,46 +19,42 @@ public class RLBlock extends Block {
         super(2,2);
     }
 
-    public RLBlock(int x, int y) {
-        this();
-        putAt(x,y);
-    }
 
     @Override
-    public void printOntoMap(char[][] m) {
+    public void printOntoMap(Coord pos,char[][] m) {
         char c = getRepresentation();
-        m[getX()][getY()] = c;
-        m[getX()+1][getY()] = c;
-        m[getX()+1][getY()+1] = c;
+        m[pos.x][pos.y] = c;
+        m[pos.x+1][pos.y] = c;
+        m[pos.x+1][pos.y+1] = c;
     }
 
     @Override
-    public void addAlts(Board board, ArrayList<IMove> alts) {
+    public void addAlts(Coord pos, Board board, ArrayList<IMove> alts) {
         //oben
         {
-            if(getY() > 0 && !board.intersectsWithRect(new Rect(getX(),getY()-1,2,1)))
+            if(pos.y > 0 && !board.intersectsWithRect(new Rect(pos.x,pos.y-1,2,1)))
                 alts.add(new Move(this,0,-1,"RLBlock Up"));
         }
         //links
         {
-            if(getX() > 0 && board.getBlockCovering(getX() - 1, getY()) == null && board.getBlockCovering(getX(), getY() + 1) == null)
+            if(pos.x > 0 && board.getBlockCovering(pos.x - 1, pos.y) == null && board.getBlockCovering(pos.x, pos.y + 1) == null)
                 alts.add(new Move(this,-1,0,"RLBlock Left"));
         }
         //rechts
         {
-            if(getX()+width < board.width && !board.intersectsWithRect(new Rect(getX()+2,getY(),1,2)))
+            if(pos.x+width < board.width && !board.intersectsWithRect(new Rect(pos.x+2,pos.y,1,2)))
                 alts.add(new Move(this,1,0,"RLBlock Right"));
         }
         //unten
         {
-            if(getY()+height < board.height && board.getBlockCovering(getX(), getY() + 1) == null && board.getBlockCovering(getX() + 1, getY() + 2) == null)
+            if(pos.y+height < board.height && board.getBlockCovering(pos.x, pos.y + 1) == null && board.getBlockCovering(pos.x + 1, pos.y + 2) == null)
                 alts.add(new Move(this,0,1,"RLBlock Down"));
         }
     }
 
     @Override
     public String toString() {
-        return "RL{@"+getCoords()+"}";
+        return "[RL]";
     }
 
     @Override
@@ -67,18 +63,11 @@ public class RLBlock extends Block {
     }
 
     @Override
-    public Block copy() {
-        Block b = new RLBlock();
-        b.putAt(getX(),getY());
-        return b;
-    }
-
-    @Override
-    public RectSet getRectSet() {
-        return new RectSet(
-                new Rect(getX()  ,getY(),2,1),
-                new Rect(getX()+1,getY(),1,2)
-        );
+    public Rect[] getRectSet(Coord pos) {
+        return new Rect[]{
+                new Rect(pos.x  ,pos.y,2,1),
+                new Rect(pos.x+1,pos.y,1,2)
+        };
     }
 
     @Override

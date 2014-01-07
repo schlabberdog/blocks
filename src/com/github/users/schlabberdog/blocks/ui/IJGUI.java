@@ -2,6 +2,7 @@ package com.github.users.schlabberdog.blocks.ui;
 
 import com.github.users.schlabberdog.blocks.board.Block;
 import com.github.users.schlabberdog.blocks.board.Board;
+import com.github.users.schlabberdog.blocks.mccs.Coord;
 import com.github.users.schlabberdog.blocks.solver.ISolutionChecker;
 import com.github.users.schlabberdog.blocks.solver.Solver2;
 import com.github.users.schlabberdog.blocks.w32.BlueBlock;
@@ -217,20 +218,22 @@ public class IJGUI {
         });
 */
         board = new Board(4,6);
-        board.insertBlock(new GreenBlock(0,0));
-        board.insertBlock(new GreenBlock(0,2));
-        board.insertBlock(new GreenBlock(0,4));
-        board.insertBlock(new GreenBlock(3,0));
-        board.insertBlock(new GreenBlock(3,2));
-        final Block rblock = new RedBlock(1,0);
-        board.insertBlock(rblock);
-        board.insertBlock(new YellowBlock(1,2));
-        board.insertBlock(new YellowBlock(1,3));
+        board.insertBlockAt(new GreenBlock(), 0, 0);
+        board.insertBlockAt(new GreenBlock(), 0, 2);
+        board.insertBlockAt(new GreenBlock(), 0, 4);
+        board.insertBlockAt(new GreenBlock(), 3, 0);
+        board.insertBlockAt(new GreenBlock(), 3, 2);
+	    
+        final Block rblock = new RedBlock();
+        board.insertBlockAt(rblock, 1, 0);
 
-        board.insertBlock(new BlueBlock(1,4));
-        board.insertBlock(new BlueBlock(2,4));
-        board.insertBlock(new BlueBlock(3,4));
-        board.insertBlock(new BlueBlock(3,5));
+	    board.insertBlockAt(new YellowBlock(), 1, 2);
+        board.insertBlockAt(new YellowBlock(), 1, 3);
+
+        board.insertBlockAt(new BlueBlock(), 1, 4);
+        board.insertBlockAt(new BlueBlock(), 2, 4);
+        board.insertBlockAt(new BlueBlock(), 3, 4);
+        board.insertBlockAt(new BlueBlock(), 3, 5);
 
         solver = new Solver2(board,new ISolutionChecker() {
             @Override
@@ -238,7 +241,8 @@ public class IJGUI {
                 tos = solver.getSaveStack().size() - 1;
                 validateButtons();
                 //gelöst ist das ganze, wenn sich der kblock mit origin bei 1,0 befindet
-                return rblock.getX() == 1 && rblock.getY() == 4;
+	            Coord rcoord = b.getBlockCoord(rblock);
+                return rcoord.x == 1 && rcoord.y == 4;
             }
         });
 

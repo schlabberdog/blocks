@@ -5,8 +5,8 @@ import com.github.users.schlabberdog.blocks.board.Board;
 import com.github.users.schlabberdog.blocks.board.moves.IMove;
 import com.github.users.schlabberdog.blocks.board.moves.Move;
 import com.github.users.schlabberdog.blocks.board.moves.MultiMove;
+import com.github.users.schlabberdog.blocks.mccs.Coord;
 import com.github.users.schlabberdog.blocks.mccs.Rect;
-import com.github.users.schlabberdog.blocks.mccs.RectSet;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -22,19 +22,14 @@ public class RUBlock extends Block {
         super(2,3);
     }
 
-    public RUBlock(int x, int y) {
-        this();
-        putAt(x,y);
-    }
-
     @Override
-    public void printOntoMap(char[][] m) {
+    public void printOntoMap(Coord pos,char[][] m) {
         char c = getRepresentation();
-        m[getX()][getY()] = c;
-        m[getX()+1][getY()] = c;
-        m[getX()+1][getY()+1] = c;
-        m[getX()][getY()+2] = c;
-        m[getX()+1][getY()+2] = c;
+        m[pos.x][pos.y] = c;
+        m[pos.x+1][pos.y] = c;
+        m[pos.x+1][pos.y+1] = c;
+        m[pos.x][pos.y+2] = c;
+        m[pos.x+1][pos.y+2] = c;
     }
 
     @Override
@@ -42,25 +37,19 @@ public class RUBlock extends Block {
         return Color.blue;
     }
 
-    @Override
-    public Block copy() {
-        RUBlock rb = new RUBlock();
-        rb.putAt(getX(),getY());
-        return rb;
-    }
 
     @Override
     public String toString() {
-        return "RU{@"+getCoords()+"}";
+        return "[RU]";
     }
 
     @Override
-    public RectSet getRectSet() {
-        return new RectSet(
-                new Rect(getX()  ,getY()  ,2,1),
-                new Rect(getX()+1,getY()  ,1,3),
-                new Rect(getX()  ,getY()+2,2,1)
-        );
+    public Rect[] getRectSet(Coord pos) {
+        return new Rect[]{
+                new Rect(pos.x  ,pos.y  ,2,1),
+                new Rect(pos.x+1,pos.y  ,1,3),
+                new Rect(pos.x  ,pos.y+2,2,1)
+        };
     }
 
     @Override
@@ -69,62 +58,64 @@ public class RUBlock extends Block {
     }
 
     @Override
-    public void addAlts(Board board, ArrayList<IMove> alts) {
+    public void addAlts(Coord pos, Board board, ArrayList<IMove> alts) {
         //oben
         {
-            if(getY() > 0 && !board.intersectsWithRect(new Rect(getX(),getY()-1,2,1)) && board.getBlockCovering(getX(), getY() + 1) == null)
-                alts.add(new Move(this,0,-1,"RUBlock Up"));
+            if(pos.y > 0 && !board.intersectsWithRect(new Rect(pos.x,pos.y-1,2,1)) && board.getBlockCovering(pos.x, pos.y + 1) == null)
+                alts.add(new Move(this,0,-1,pos+": RUBlock Up"));
         }
         //links
         {
-            if(getX() > 0 && board.getBlockCovering(getX() - 1, getY()) == null && board.getBlockCovering(getX(), getY() + 1) == null && board.getBlockCovering(getX() - 1, getY() + 2) == null)
-                alts.add(new Move(this,-1,0,"RUBlock Left"));
+            if(pos.x > 0 && board.getBlockCovering(pos.x - 1, pos.y) == null && board.getBlockCovering(pos.x, pos.y + 1) == null && board.getBlockCovering(pos.x - 1, pos.y + 2) == null)
+                alts.add(new Move(this,-1,0,pos+": RUBlock Left"));
         }
         //rechts
         {
-            if(getX()+width < board.width && !board.intersectsWithRect(new Rect(getX()+2,getY(),1,3)))
-                alts.add(new Move(this,1,0,"RUBlock Right"));
+            if(pos.x+width < board.width && !board.intersectsWithRect(new Rect(pos.x+2,pos.y,1,3)))
+                alts.add(new Move(this,1,0,pos+": RUBlock Right"));
         }
         //unten
         {
-            if(getY()+height < board.height && board.getBlockCovering(getX(), getY() + 1) == null && !board.intersectsWithRect(new Rect(getX(),getY()+3,2,1)))
-                alts.add(new Move(this,0,1,"RUBlock Down"));
+            if(pos.y+height < board.height && board.getBlockCovering(pos.x, pos.y + 1) == null && !board.intersectsWithRect(new Rect(pos.x,pos.y+3,2,1)))
+                alts.add(new Move(this,0,1,pos+": RUBlock Down"));
         }
         // hier gibt es die zusätzliche besonderheit, dass wenn in der Auskerbung ein LBlock steckt,
         // wir den ggf. mitbewegen können (nur nach oben, unten, links)
-        Block insert = board.getBlockCovering(getX(), getY() + 1);
+
+        Block insert = board.getBlockCovering(pos.x,pos.y+1);
         if(insert instanceof LBlock) {
+			Coord is = board.getBlockCoord(insert);
             //vielleicht können wir die zwei nach links bewegen?
-            if(insert.getX() > 0) {
+            if(is.x > 0) {
                 //sind die felder links davon frei?
                 if(
-                        board.getBlockCovering(getX() - 1, getY()) == null &&
-                        board.getBlockCovering(insert.getX() - 1, insert.getY()) == null &&
-                        board.getBlockCovering(getX() - 1, getY() + 2) == null) {
+                        board.getBlockCovering(pos.x - 1, pos.y) == null &&
+                        board.getBlockCovering(is.x - 1, is.y) == null &&
+                        board.getBlockCovering(pos.x - 1, pos.y + 2) == null) {
                     MultiMove mm = new MultiMove(this,-1,0);
                     mm.add(insert,-1,0);
                     alts.add(mm);
                 }
             }
             //vielleicht nach oben?
-            if(getY() > 0) {
+            if(pos.y > 0) {
                 //sind die felder oben davon frei?
                 if(
-                        board.getBlockCovering(getX(), getY() - 1) == null &&
-                        board.getBlockCovering(getX() + 1, getY() - 1) == null &&
-                        board.getBlockCovering(insert.getX(), insert.getY() - 1) == null) {
+                        board.getBlockCovering(pos.x, pos.y - 1) == null &&
+                        board.getBlockCovering(pos.x + 1, pos.y - 1) == null &&
+                        board.getBlockCovering(is.x, is.y - 1) == null) {
                     MultiMove mm = new MultiMove(this,0,-1);
                     mm.add(insert,0,-1);
                     alts.add(mm);
                 }
             }
             //vielleicht nach unten?
-            if(getY()+3 < board.height) {
+            if(pos.y+height < board.height) {
                 //sind die felder darunter frei?
                 if(
-                        board.getBlockCovering(getX(), getY() + 3) == null &&
-                        board.getBlockCovering(getX() + 1, getY() + 3) == null &&
-                        board.getBlockCovering(insert.getX(), insert.getY() + 1) == null) {
+                        board.getBlockCovering(pos.x, pos.y + height) == null &&
+                        board.getBlockCovering(pos.x + 1, pos.y + height) == null &&
+                        board.getBlockCovering(is.x, is.y + 1) == null) {
                     MultiMove mm = new MultiMove(this,0,+1);
                     mm.add(insert,0,+1);
                     alts.add(mm);

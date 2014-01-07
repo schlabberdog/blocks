@@ -7,7 +7,7 @@ import com.github.users.schlabberdog.blocks.mccs.Rect;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 
 public class Board {
     public final int width;
@@ -24,22 +24,30 @@ public class Board {
         blockMapReverse = new Block[w][h];
     }
 
-    public void insertBlock(Block b) {
-        //gucken, dass kein block vor dem board landet
-        if(b.getX() < 0 || b.getY() < 0)
-            throw new RuntimeException("Versuche Block <"+b+"> an ungültigen Koordinaten ["+b.getX()+","+b.getY()+"] abzulegen!");
-        //gucken, dass kein block hinter dem board landet
-        if(b.width + b.getX() > this.width || b.height + b.getY() > this.height)
-            throw new RuntimeException("Block <"+b+"> an Position ["+b.getX()+","+b.getY()+"] geht über das Board hinaus!");
-        //gucken, dass der block nicht schon auf dem board liegt
-        if(blockMap.containsKey(b))
-            throw new RuntimeException("Block <"+b+"> liegt schon auf dem Board!");
-        //gucken, dass der platz nicht schon belegt ist
-        if(intersectsWithBlock(b))
-            throw new RuntimeException("Kann Block <"+b+"> nicht an ["+b.getX()+","+b.getY()+"] ablegen. Belegt von anderem Block!");
-        //ok, dann einfügen
-        blockMapReverse[b.getX()][b.getY()] = b;
-        blockMap.put(b,b.getCoords());
+	public void insertBlockAt(Block b, Coord c) {
+		//gucken, dass kein block vor dem board landet
+		if(c.x < 0 || c.y < 0)
+			throw new RuntimeException("Versuche Block <"+b+"> an ungültigen Koordinaten ["+c.x+","+c.y+"] abzulegen!");
+		//gucken, dass kein block hinter dem board landet
+		if(b.width + c.x > this.width || b.height + c.y > this.height)
+			throw new RuntimeException("Block <"+b+"> an Position ["+c.x+","+c.y+"] geht über das Board hinaus!");
+		//gucken, dass der block nicht schon auf dem board liegt
+		if(blockMap.containsKey(b))
+			throw new RuntimeException("Block <"+b+"> liegt schon auf dem Board!");
+		//gucken, dass der platz nicht schon belegt ist
+		if(intersectsWithRectSet(b.getRectSet(c)))
+			throw new RuntimeException("Kann Block <"+b+"> nicht an ["+c.x+","+c.y+"] ablegen. Belegt von anderem Block!");
+		//ok, dann einfügen
+		insertUnchecked(b,c);
+	}
+
+	private void insertUnchecked(Block b, Coord c) {
+		blockMapReverse[c.x][c.y] = b;
+		blockMap.put(b,c);
+	}
+
+    public void insertBlockAt(Block b,int x,int y) {
+		insertBlockAt(b,new Coord(x,y));
     }
 
     public void removeBlock(Block b) {
@@ -52,22 +60,23 @@ public class Board {
 
     /**
      * Prüft ob sich der Block mit einem anderen Block auf dem Board überlagert
-     * @param b Der zu prüfende Block
+     * @param rs Der zu prüfende Block
      * @return True oder False
      */
-    public boolean intersectsWithBlock(Block b) {
-        for (Block block : blockMap.keySet()) {
-            if(block.coversArea(b.getRectSet()))
-                return true;
-        }
+    public boolean intersectsWithRectSet(Rect[] rs) {
+	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
+		    if(e.getKey().coversArea(e.getValue(), rs))
+			    return true;
+	    }
+
         return false;
     }
 
     public boolean intersectsWithRect(Rect r) {
-        for (Block block : blockMap.keySet()) {
-            if(block.coversArea(r))
-                return true;
-        }
+	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
+		    if(e.getKey().coversArea(e.getValue(), r))
+			    return true;
+	    }
         return false;
     }
 
@@ -81,19 +90,15 @@ public class Board {
 
     public Block getBlockCovering(int x, int y) {
         Rect r = new Rect(x,y,1,1);
-        for (Block block : blockMap.keySet()) {
-            if(block.coversArea(r))
-                return block;
+        for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
+            if(e.getKey().coversArea(e.getValue(), r))
+                return e.getKey();
         }
         return null;
     }
 
-    public List<Block> getBlocks() { //todo adapt
-        ArrayList<Block> bl = new ArrayList<Block>();
-        for (Block block : blockMap.keySet()) {
-            bl.add(block);
-        }
-        return bl;
+    public Map<Block,Coord> getBlockMap() {
+        return blockMap;
     }
 
     /**
@@ -108,9 +113,9 @@ public class Board {
         char[][] map = new char[width][height];
 
         //alle elemente auf die map packen
-        for (Block block : blockMap.keySet()) {
-            block.printOntoMap(map);
-        }
+	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
+		    e.getKey().printOntoMap(e.getValue(), map);
+	    }
 
         //reihenweise drucken
         for (int y = 0; y < height; y++) {
@@ -140,9 +145,9 @@ public class Board {
         ps.println();
 
         //alle elemente auf die map packen
-        for (Block block : blockMap.keySet()) {
-            block.printOntoMap(map);
-        }
+	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
+		    e.getKey().printOntoMap(e.getValue(), map);
+	    }
 
         //reihenweise drucken
         for (int y = 0; y < height; y++) {
@@ -173,13 +178,9 @@ public class Board {
      */
     public ArrayList<IMove> getAlternatives() {
         ArrayList<IMove> alts = new ArrayList<IMove>();
-        for (Block block : blockMap.keySet()) {
-            //für imblocks gibts keine alternativen, die sind fest
-            if(block instanceof ImBlock)
-                continue;
-
-            block.addAlts(this, alts);
-        }
+	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
+			e.getKey().addAlts(e.getValue(),this,alts);
+	    }
         return alts;
     }
 
@@ -190,9 +191,9 @@ public class Board {
     public BoardSave getSave() {
         BoardSave save = new BoardSave();
 
-        for (Block block : blockMap.keySet()) {
-            save.put(block,new Coord(block.getX(),block.getY()));
-        }
+	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
+		    save.put(e.getKey(),e.getValue());
+	    }
 
         return save;
     }
@@ -221,22 +222,22 @@ public class Board {
         //alle aktuellen blocks entfernen
         clear();
         //alle blocks im save wiederherstellen
-        for (Block block : save.keySet()) {
-            //block auf korrekte position verschieben
-            block.putAt(save.get(block));
-            //hinzufügen ohne kontrolle
-            insertBlock(block); //todo adapt
+        for (Map.Entry<Block, Coord> e : save.entrySet()) {
+			insertUnchecked(e.getKey(),e.getValue());
         }
-        //System.out.println("<Restore to "+getBoardHash()+">");
     }
 
     public Board copy() { //TODO thread safety
         Board out = new Board(width,height);
 
-        for (Block block : blockMap.keySet()) {
-            out.insertBlock(block.copy());
-        }
+	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
+		    out.insertBlockAt(e.getKey(),e.getValue());
+	    }
 
         return out;
     }
+
+	public Coord getBlockCoord(Block block) {
+		return blockMap.get(block);
+	}
 }

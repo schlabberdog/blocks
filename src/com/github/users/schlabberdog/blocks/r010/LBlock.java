@@ -12,11 +12,6 @@ public class LBlock extends Block {
         super(2,1);
     }
 
-    public LBlock(int x, int y) {
-        this();
-        putAt(x,y);
-    }
-
     @Override
     public char getRepresentation() {
         return '=';
@@ -28,14 +23,7 @@ public class LBlock extends Block {
     }
 
     @Override
-    public Block copy() {
-        Block lb = new LBlock();
-        lb.putAt(getX(),getY());
-        return lb;
-    }
-
-    @Override
     public String toString() {
-        return " L{@"+getCoords()+"}";
+        return " [L]";
     }
 }

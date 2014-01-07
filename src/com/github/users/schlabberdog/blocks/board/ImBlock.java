@@ -1,6 +1,7 @@
 package com.github.users.schlabberdog.blocks.board;
 
 import com.github.users.schlabberdog.blocks.board.moves.IMove;
+import com.github.users.schlabberdog.blocks.mccs.Coord;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -11,9 +12,8 @@ import java.util.ArrayList;
  */
 public class ImBlock extends Block {
 
-    public ImBlock(int w, int h,int x,int y) {
+    public ImBlock(int w, int h) {
         super(w, h);
-        putAt(x,y);
     }
 
     @Override
@@ -22,17 +22,12 @@ public class ImBlock extends Block {
     }
 
     @Override
-    public Block copy() {
-        return new ImBlock(width,height,getX(),getY());
-    }
-
-    @Override
     public char getRepresentation() {
         return '#';
     }
 
     @Override
-    public void addAlts(Board board, ArrayList<IMove> alts) {
+    public void addAlts(Coord my,Board board, ArrayList<IMove> alts) {
         //der hat nie welche
     }
 }

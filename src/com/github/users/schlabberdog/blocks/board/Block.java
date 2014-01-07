@@ -4,7 +4,6 @@ import com.github.users.schlabberdog.blocks.board.moves.IMove;
 import com.github.users.schlabberdog.blocks.board.moves.Move;
 import com.github.users.schlabberdog.blocks.mccs.Coord;
 import com.github.users.schlabberdog.blocks.mccs.Rect;
-import com.github.users.schlabberdog.blocks.mccs.RectSet;
 
 import java.awt.*;
 import java.awt.geom.Area;
@@ -17,65 +16,50 @@ import java.util.ArrayList;
 public abstract class Block {
     public final int width;
     public final int height;
-    private int x;
-    private int y;
 
     protected Block(int w,int h) {
         width = w;
         height = h;
     }
 
-    public void putAt(int x,int y) {
-        this.x = x;
-        this.y = y;
-    }
+	public abstract Color getColor();
 
-    public boolean coversArea(Rect other) {
-        for (Rect myRect : getRectSet().rects) {
+	public abstract char getRepresentation();
+
+	public boolean coversArea(Coord myOrigin,Rect other) {
+        for (Rect myRect : getRectSet(myOrigin)) {
             if(other.intersect(myRect) != null)
                 return true;
         }
         return false;
     }
 
-    public boolean coversArea(RectSet other) {
-        for (Rect rect : other.rects) {
-            if(coversArea(rect))
+    public boolean coversArea(Coord myOrigin, Rect[] other) {
+        for (Rect rect : other) {
+            if(coversArea(myOrigin,rect))
                 return true;
         }
         return false;
     }
 
-    public RectSet getRectSet() {
-        return new RectSet(new Rect(x,y,width,height));
+    public Rect[] getRectSet(Coord origin) {
+        return new Rect[]{
+		        new Rect(origin.x, origin.y, width, height)
+        };
     }
 
-    public Coord getCoords() {
-        return new Coord(x,y);
-    }
-
-    public abstract char getRepresentation();
-
-    public int getX() {
-        return x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
-    public void printOntoMap(char[][] m) {
+    public void printOntoMap(Coord origin,char[][] m) {
         char c = getRepresentation();
-        for (int i = getX(); i <(getX()+width); i++) {
-            for (int j = getY(); j < (getY()+height); j++) {
-                m[i][j] = c;
+        for (int x = origin.x; x <(origin.x+width); x++) {
+            for (int y = origin.y; y < (origin.y+height); y++) {
+                m[x][y] = c;
             }
         }
     }
 
-    public Area drawShape(double bw, double bh) {
+    public Area drawShape(Coord myOrigin,double bw, double bh) {
         Area out = new Area();
-        for (Rect rect : getRectSet().rects) {
+        for (Rect rect : getRectSet(myOrigin)) {
             out.add(new Area(new Rectangle2D.Double((bw*rect.getX()+10),(bh*rect.getY()+10),(bw*rect.getWidth()-15),(bh*rect.getHeight()-15))));
         }
         return out;
@@ -83,40 +67,35 @@ public abstract class Block {
 
     /**
      * Weist einen Block an alle seine möglichen Züge auf ein Array zu schreiben
+     * @param myOrigin Ursprungsposition dieses Blocks auf dem Board (von dort aus werden Alternativen gesucht)
      * @param board Board, auf dem sich der Block befindet
      * @param alts Array, dem die Alternativen hinzugefügt werden sollen
      */
-    public void addAlts(Board board, ArrayList<IMove> alts) {
+    public void addAlts(Coord myOrigin,Board board, ArrayList<IMove> alts) {
         //um einen block nach links/rechts (oben/unten) zu verschieben muss jeweils links/rechts (oben/unten) davon eine Spalte (Zeile)
         //in Höhe (Breite) des Blocks frei sein.
-
+		int y = myOrigin.y;
+	    int x = myOrigin.x;
         //oben
         {
-            if(getY() > 0 && !board.intersectsWithRect(new Rect(getX(),getY()-1,width,1)) )
-                alts.add(new Move(this,0,-1,"Block Up"));
+            if(y > 0 && !board.intersectsWithRect(new Rect(x,y-1,width,1)) )
+                alts.add(new Move(this,0,-1,myOrigin+": Block Up"));
         }
         //links
         {
-            if(getX() > 0 && !board.intersectsWithRect(new Rect(getX()-1,getY(),1,height)) )
-                alts.add(new Move(this,-1,0,"Block Left"));
+            if(x > 0 && !board.intersectsWithRect(new Rect(x-1,y,1,height)) )
+                alts.add(new Move(this,-1,0,myOrigin+": Block Left"));
         }
         //rechts
         {
-            if(getX()+width < board.width && !board.intersectsWithRect(new Rect(getX()+width,getY(),1,height)) )
-                alts.add(new Move(this,1,0,"Block Right"));
+            if(x+width < board.width && !board.intersectsWithRect(new Rect(x+width,y,1,height)) )
+                alts.add(new Move(this,1,0,myOrigin+": Block Right"));
         }
         //unten
         {
-            if(getY()+height < board.height && !board.intersectsWithRect(new Rect(getX(),getY()+height,width,1)) )
-                alts.add(new Move(this,0,1,"Block Down"));
+            if(y+height < board.height && !board.intersectsWithRect(new Rect(x,y+height,width,1)) )
+                alts.add(new Move(this,0,1,myOrigin+": Block Down"));
         }
     }
 
-    public abstract Color getColor();
-
-    public abstract Block copy();
-
-    public void putAt(Coord coord) {
-        putAt(coord.x,coord.y);
-    }
 }

@@ -2,9 +2,11 @@ package com.github.users.schlabberdog.blocks.ui;
 
 import com.github.users.schlabberdog.blocks.board.Block;
 import com.github.users.schlabberdog.blocks.board.Board;
+import com.github.users.schlabberdog.blocks.mccs.Coord;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Map;
 
 public class BoardView extends JComponent {
     private final Board board;
@@ -28,9 +30,8 @@ public class BoardView extends JComponent {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
 
         Stroke stroke2 = new BasicStroke(2.0f);
-        Stroke stroke1 = new BasicStroke(1.0f);
 
-        g2.setColor(Color.black);
+	    g2.setColor(Color.black);
 
         Board board = this.board.copy();
 
@@ -52,14 +53,10 @@ public class BoardView extends JComponent {
         }
 
         //blocks zeichnen
-        for (Block blk : board.getBlocks()) {
-        /*    g2.setColor(blk.getColor());
-            g2.fillRect((int)(boxWidth*blk.getX()+10),(int)(boxHeight*blk.getY()+10),(int)(boxWidth*blk.width-15),(int)(boxHeight*blk.height-15));
-            g2.setColor(Color.black);
-            g2.drawRect((int)(boxWidth*blk.getX()+10),(int)(boxHeight*blk.getY()+10),(int)(boxWidth*blk.width-15),(int)(boxHeight*blk.height-15));
-            */
+        for (Map.Entry<Block,Coord> e : board.getBlockMap().entrySet()) {
+			Block blk = e.getKey();
             g2.setColor(blk.getColor());
-            g2.fill(blk.drawShape(boxWidth,boxHeight));
+            g2.fill(blk.drawShape(e.getValue(), boxWidth, boxHeight));
         }
 
     }

@@ -2,8 +2,11 @@ package com.github.users.schlabberdog.blocks.board.moves;
 
 import com.github.users.schlabberdog.blocks.board.Block;
 import com.github.users.schlabberdog.blocks.board.Board;
+import com.github.users.schlabberdog.blocks.mccs.Coord;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class MultiMove implements IMove {
     private ArrayList<SMove> moves = new ArrayList<SMove>();
@@ -33,20 +36,22 @@ public class MultiMove implements IMove {
 
     @Override
     public void apply(Board board) {
-        //zuerst müssen alle blocks runter vom board, sonst könnten sie sich beim verschieben überlagern
+	    //zuerst müssen wir die neuen koordinaten aller blocks berechnen
+	    HashMap<Block,Coord> newMap = new HashMap<Block, Coord>();
+	    for(SMove move : moves) {
+		    Coord pos = board.getBlockCoord(move.block);
+		    int newX = pos.x + move.deltaX;
+		    int newY = pos.y + move.deltaY;
+
+		    newMap.put(move.block,new Coord(newX,newY));
+	    }
+        //dann müssen alle blocks runter vom board, sonst könnten sie sich beim verschieben überlagern
         for (SMove move : moves) {
             board.removeBlock(move.block);
         }
-        //dann korrigieren wir alle positionen
-        for (SMove move : moves) {
-            int newX = move.block.getX() + move.deltaX;
-            int newY = move.block.getY() + move.deltaY;
-
-            move.block.putAt(newX,newY);
-        }
-        //und zum schluss nehmen wir wieder alle auf
-        for (SMove move : moves) {
-            board.insertBlock(move.block);
+        //dann nehmen wir sie mit korrekter position wieder auf
+        for (Map.Entry<Block,Coord> e : newMap.entrySet()) {
+            board.insertBlockAt(e.getKey(),e.getValue());
         }
     }
 

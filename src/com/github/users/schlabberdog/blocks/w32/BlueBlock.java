@@ -12,10 +12,6 @@ public class BlueBlock extends Block {
         super(1, 1);
     }
 
-    public BlueBlock(int x, int y) {
-        this();
-        putAt(x,y);
-    }
 
     @Override
     public char getRepresentation() {
@@ -28,15 +24,8 @@ public class BlueBlock extends Block {
     }
 
     @Override
-    public Block copy() {
-        Block block = new BlueBlock();
-        block.putAt(getX(), getY());
-        return block;
-    }
-
-    @Override
     public String toString() {
-        return "Blue{@"+getCoords()+"}";
+        return "[Blue]";
     }
 
 }

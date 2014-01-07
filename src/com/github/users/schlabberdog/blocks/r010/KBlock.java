@@ -13,16 +13,10 @@ public class KBlock extends Block {
         super(1,2);
     }
 
-    public KBlock(int x, int y) {
-        this();
-        putAt(x,y);
-    }
-
     @Override
     public char getRepresentation() {
         return '§';
     }
-
 
     @Override
     public Color getColor() {
@@ -30,15 +24,7 @@ public class KBlock extends Block {
     }
 
     @Override
-    public Block copy() {
-        Block kblock = new KBlock();
-        kblock.putAt(getX(),getY());
-        return kblock;
-    }
-
-
-    @Override
     public String toString() {
-        return " K{@"+getCoords()+"}";
+        return " [K]";
     }
 }
