@@ -1,19 +1,11 @@
 package com.github.users.schlabberdog.blocks.ui;
 
-import com.github.users.schlabberdog.blocks.board.Block;
 import com.github.users.schlabberdog.blocks.board.Board;
-import com.github.users.schlabberdog.blocks.mccs.Coord;
-import com.github.users.schlabberdog.blocks.solver.ISolutionChecker;
-import com.github.users.schlabberdog.blocks.solver.Solver2;
-import com.github.users.schlabberdog.blocks.w32.BlueBlock;
-import com.github.users.schlabberdog.blocks.w32.GreenBlock;
-import com.github.users.schlabberdog.blocks.w32.RedBlock;
-import com.github.users.schlabberdog.blocks.w32.YellowBlock;
+import com.github.users.schlabberdog.blocks.solver.Solver;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Locale;
 
 public class IJGUI {
     private BoardView boardView;
@@ -32,13 +24,19 @@ public class IJGUI {
     private JButton stackEndButton;
     private JSpinner pathStopLength;
     private JSpinner stackLimiterSpinner;
+	private JLabel worstStackLabel;
+	private JCheckBox avoidWorseCheckbox;
 
-    private Board board;
-    private Solver2 solver;
+	private Board board;
+    private Solver solver;
+	private Timer timer;
 
-    private int tos;
+//    private int tos;
 
-    public IJGUI() {
+    private IJGUI(Board b,Solver s) {
+	    this.board = b;
+	    this.solver = s;
+
         stepButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -70,7 +68,6 @@ public class IJGUI {
             }
         });
 
-        validateButtons();
         stackStartButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -86,6 +83,14 @@ public class IJGUI {
 
         pathStopLength.setModel(new SpinnerNumberModel(30,0,Integer.MAX_VALUE,1));
         stackLimiterSpinner.setModel(new SpinnerNumberModel(50,0, Integer.MAX_VALUE,1));
+
+	    timer = new Timer(50,new ActionListener() {
+		    @Override
+		    public void actionPerformed(ActionEvent actionEvent) {
+				validateButtons();
+		    }
+	    });
+	    timer.start();
     }
 
     public void validateButtons() {
@@ -104,29 +109,35 @@ public class IJGUI {
         pathStopLength.setEnabled(!doingFF && !solver.isSolved());
 */
         boardView.repaint();
-        checkCountLabel.setText(String.format(Locale.getDefault(), "%,d", solver.getCheckCount()));
-        stackLabel.setText(String.format(Locale.getDefault(), "%,d", tos));
-        numSolutionsLabel.setText(String.format(Locale.getDefault(), "%,d", solver.getSolutionCount()));
-        solImprovLabel.setText(String.format(Locale.getDefault(), "%,d", solver.getSolutionImprovedCount()));
-        bestPathLabel.setText(String.format(Locale.getDefault(), "%,d", solver.getBestPathLength()));
+
+	    checkCountLabel.setText(  String.format("%,d", solver.getCheckCount()));
+        stackLabel.setText(       String.format("%,d", solver.getStackDepth()));
+        numSolutionsLabel.setText(String.format("%,d", solver.getSolutionCount()));
+        solImprovLabel.setText(   String.format("%,d", solver.getSolutionImprovedCount()));
+	    worstStackLabel.setText(  String.format("%,d", solver.getWorstStack()));
+        bestPathLabel.setText(    String.format("%,d", solver.getBestPathLength()));
+
+	    avoidWorseCheckbox.setSelected(solver.shouldAvoidWorseStacks());
     }
 
     public void stackStart() {
-        board.applySave(solver.getSaveStack().get((tos = 0)).initialState);
-        validateButtons();
+       /* board.applySave(solver.getSaveStack().get((tos = 0)).initialState);
+        validateButtons();*/
     }
 
     public void stackEnd() {
-        tos = solver.getSaveStack().size();
+    /*    tos = solver.getSaveStack().size();
         board.applySave(solver.getSaveStack().get(tos).initialState);
-        validateButtons();
+        validateButtons();*/
     }
 
     public void stackUp() {
-        --tos;
+     /*   --tos;
         selectFromStack();
-        validateButtons();
+        validateButtons();*/
     }
+
+/*
 
     private void selectFromStack() {
         if(tos == solver.getSaveStack().size()) {
@@ -139,20 +150,21 @@ public class IJGUI {
             board.applySave(solver.getSaveStack().get(tos).initialState);
         }
     }
+*/
 
     public void stackDown() {
-        ++tos;
+     /*   ++tos;
         selectFromStack();
-        validateButtons();
+        validateButtons();*/
     }
 
     public void doNext() {
-        solver.skipSolution();
-        validateButtons();
+      /*  solver.skipSolution();
+        validateButtons();*/
     }
 
     public void createFFAction() {
-        solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
+     /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
 
         Runnable r = new Runnable() {
             @Override
@@ -180,82 +192,28 @@ public class IJGUI {
         };
 
         SwingUtilities.invokeLater(r);
-
+*/
     }
 
     public void doStep() {
-        solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
+     /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
         solver.step();
-        validateButtons();
+        validateButtons();*/
     }
 
     private void createUIComponents() {
-/*
-        board = new Board(6,7);
-        board.insertBlock(new ImBlock(1, 3, 0, 0));
-        board.insertBlock(new ImBlock(1, 1, 0, 6));
-        board.insertBlock(new ImBlock(1, 3, 5, 0));
-        board.insertBlock(new ImBlock(2, 2, 2, 0));
-
-        final Block kblock = new KBlock(4,0);
-        board.insertBlock(kblock);
-
-        board.insertBlock(new LBlock(2, 3));
-        board.insertBlock(new LBlock(3, 4));
-        board.insertBlock(new LUBlock(1, 2));
-        board.insertBlock(new RUBlock(4, 3));
-
-        board.insertBlock(new RLBlock(1, 5));
-
-        solver = new Solver(board,new ISolutionChecker() {
-            @Override
-            public boolean checkBoard(Board b) {
-                tos = solver.getSaveStack().size() - 1;
-                validateButtons();
-                //gelöst ist das ganze, wenn sich der kblock mit origin bei 1,0 befindet
-                return kblock.getX() == 1 && kblock.getY() == 0;
-            }
-        });
-*/
-        board = new Board(4,6);
-        board.insertBlockAt(new GreenBlock(), 0, 0);
-        board.insertBlockAt(new GreenBlock(), 0, 2);
-        board.insertBlockAt(new GreenBlock(), 0, 4);
-        board.insertBlockAt(new GreenBlock(), 3, 0);
-        board.insertBlockAt(new GreenBlock(), 3, 2);
-	    
-        final Block rblock = new RedBlock();
-        board.insertBlockAt(rblock, 1, 0);
-
-	    board.insertBlockAt(new YellowBlock(), 1, 2);
-        board.insertBlockAt(new YellowBlock(), 1, 3);
-
-        board.insertBlockAt(new BlueBlock(), 1, 4);
-        board.insertBlockAt(new BlueBlock(), 2, 4);
-        board.insertBlockAt(new BlueBlock(), 3, 4);
-        board.insertBlockAt(new BlueBlock(), 3, 5);
-
-        solver = new Solver2(board,new ISolutionChecker() {
-            @Override
-            public boolean checkBoard(Board b) {
-                tos = solver.getSaveStack().size() - 1;
-                validateButtons();
-                //gelöst ist das ganze, wenn sich der kblock mit origin bei 1,0 befindet
-	            Coord rcoord = b.getBlockCoord(rblock);
-                return rcoord.x == 1 && rcoord.y == 4;
-            }
-        });
-
-        solver.startSolve();
-
         boardView = new BoardView(board);
     }
 
-    public static void main(String args[]) {
+    public static IJGUI Create(Board b, Solver s) {
+	    IJGUI gui = new IJGUI(b,s);
+
         JFrame frame = new JFrame("IJGUI");
-        frame.setContentPane(new IJGUI().root);
+        frame.setContentPane(gui.root);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.pack();
         frame.setVisible(true);
+
+	    return gui;
     }
 }

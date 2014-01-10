@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Stack;
 
-public class SolverA {
+public class Solver {
     private Board board;
     private ISolutionChecker checker;
     long checkCount;
@@ -18,13 +18,14 @@ public class SolverA {
     int solutionImprovedCount;
     int minPathLength;
 	int worstStack;
+	boolean avoidWorseStacks = true;
 
     /* In dem Array bewahren wir uns alle Schritte auf, die wir gemacht haben */
     private LeveledSteps steps = new LeveledSteps();
 
     private Stack<Backtrack> btStack = new Stack<Backtrack>();
 
-    public SolverA(Board board, ISolutionChecker checker) {
+    public Solver(Board board, ISolutionChecker checker) {
         this.board = board;
         this.checker = checker;
     }
@@ -47,13 +48,6 @@ public class SolverA {
 	        if (!goAnywhere())
 		        break;
         }
-	    System.out.println("***");
-	    System.out.println("Worst Stack Depth: "+worstStack);
-	    System.out.println("Solutions found: "+solutionCount);
-	    System.out.println("Boards checked: "+checkCount);
-	    System.out.println("Solution improved "+solutionImprovedCount+" times");
-	    System.out.println("Best solution: "+minPathLength+" steps");
-
     }
 
     private boolean goAnywhere() {
@@ -137,6 +131,9 @@ public class SolverA {
 
 
     private void goDeeper() {
+	    //schlechtere stacks können eigentlich keine besseren lösungen produzieren
+		if(avoidWorseStacks && btStack.size() > minPathLength)
+			return;
 
         //sicherung machen
         BoardSave save = board.getSave();
@@ -208,4 +205,31 @@ public class SolverA {
     }
 
 
+	public long getCheckCount() {
+		return checkCount;
+	}
+
+	public int getStackDepth() {
+		return (btStack.size() - 1);
+	}
+
+	public int getSolutionCount() {
+		return solutionCount;
+	}
+
+	public int getSolutionImprovedCount() {
+		return solutionImprovedCount;
+	}
+
+	public int getBestPathLength() {
+		return minPathLength;
+	}
+
+	public int getWorstStack() {
+		return worstStack;
+	}
+
+	public boolean shouldAvoidWorseStacks() {
+		return avoidWorseStacks;
+	}
 }
