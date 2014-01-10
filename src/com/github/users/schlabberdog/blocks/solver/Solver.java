@@ -8,16 +8,21 @@ import com.github.users.schlabberdog.blocks.board.moves.IMove;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Stack;
 
 public class Solver {
-    private Board board;
-    private ISolutionChecker checker;
+    private final Board board;
+    private final ISolutionChecker checker;
+
+	private ISolverDelegate delegate;
+
     long checkCount;
     int solutionCount;
     int solutionImprovedCount;
     int minPathLength;
 	int worstStack;
+
 	boolean avoidWorseStacks = true;
 
     /* In dem Array bewahren wir uns alle Schritte auf, die wir gemacht haben */
@@ -30,7 +35,9 @@ public class Solver {
         this.checker = checker;
     }
 
-    public void startSolve() {
+    public void solve() {
+	    solverStarted();
+
         steps.clear();
         btStack.clear();
         checkCount = 0;
@@ -48,6 +55,8 @@ public class Solver {
 	        if (!goAnywhere())
 		        break;
         }
+
+	    solverDone();
     }
 
     private boolean goAnywhere() {
@@ -80,23 +89,9 @@ public class Solver {
         IMove m = cur.alternatives.get(0);
         cur.alternatives.remove(0);
 
-        String bkMov = m.toString();
-        try {
-
-            board.applyMove(m);
-
-        } catch (RuntimeException e) {
-            System.out.println(e);
-            System.out.println("Before:");
-            board.applySave(cur.initialState);
-            board.print(System.out);
-            System.out.println("Move was:");
-            System.out.println(bkMov);
-            throw e;
-        }
+        board.applyMove(m);
 
 	    cur.selected = m;
-
 
         goDeeper();
     }
@@ -107,24 +102,14 @@ public class Solver {
 		if(checker.checkBoard(board)) {
 			solutionCount++;
 
-			int solSize = (btStack.size() - 1);
+			int solSize = (btStack.size() - 1); //-1 ist notwendig weil die ausgangsposition auch auf dem stack liegt
 
 			//uns interessieren nur lösungen, die besser sind als bereits bekannte
-			if(solSize < minPathLength) { //-1 ist notwendig weil die ausgangsposition auch auf dem stack liegt
-				System.out.println("<(Better) Solution Found in: "+solSize+" moves> (tried: "+ checkCount +")(solutions: "+solutionCount+")");
+			if(solSize < minPathLength) {
 				solutionImprovedCount++;
 				minPathLength = solSize;
-				BoardSave save = board.getSave();
 
-				for (int i = 0; i < btStack.size(); i++) {
-
-						board.applySave(btStack.get(i).initialState);
-					if(i > 0)
-						System.out.println(String.format("%4d: %s",i,btStack.get(i-1).selected));
-						board.print(System.out);
-
-				}
-				board.applySave(save);
+				solutionImproved(solSize);
 			}
 		}
 	}
@@ -186,14 +171,14 @@ public class Solver {
         }
 
 
-            // 3. board sichern, alternativen hinzufügen und hash speichern
-            btStack.push(new Backtrack(save,alts));
+        // 3. board sichern, alternativen hinzufügen und hash speichern
+        btStack.push(new Backtrack(save,alts));
 
-	        //lösung prüfen?
-	        checkSolution();
+        //lösung prüfen?
+        checkSolution();
 
-			if(btStack.size() > worstStack)
-				worstStack = btStack.size();
+		if(btStack.size() > worstStack)
+			worstStack = btStack.size();
 
     }
 
@@ -231,5 +216,37 @@ public class Solver {
 
 	public boolean shouldAvoidWorseStacks() {
 		return avoidWorseStacks;
+	}
+
+	public List<IMove> getStepList() {
+		ArrayList<IMove> steps = new ArrayList<IMove>();
+
+		for (Backtrack backtrack : btStack) {
+			IMove m = backtrack.selected;
+			if (m == null)
+				break;
+			steps.add(m);
+		}
+
+		return steps;
+	}
+
+	public void setDelegate(ISolverDelegate delegate) {
+		this.delegate = delegate;
+	}
+
+	private void solutionImproved(int solSize) {
+		if(delegate != null)
+			delegate.solutionImproved(this,solSize);
+	}
+
+	private void solverStarted() {
+		if(delegate != null)
+			delegate.solverStarted(this);
+	}
+
+	private void solverDone() {
+		if(delegate != null)
+			delegate.solverDone(this);
 	}
 }

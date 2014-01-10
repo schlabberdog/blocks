@@ -11,6 +11,10 @@ public class Move implements IMove {
 
     public final String debugMsg;
 
+	public Move(Block block, int deltaX, int deltaY) {
+		this(block, deltaX, deltaY, null);
+	}
+
     public Move(Block block, int deltaX, int deltaY, String debugMsg) {
         this.block = block;
         this.deltaX = deltaX;
@@ -54,6 +58,19 @@ public class Move implements IMove {
 
     @Override
     public String toString() {
-        return "Move{" + block + ": -> V[" + deltaX + "|" + deltaY + "] (Created on: "+ debugMsg +")}";
+	    StringBuilder sb = new StringBuilder("Move{");
+	    sb.append(block);
+	    sb.append(": -> V[");
+	    sb.append(deltaX);
+	    sb.append('|');
+	    sb.append(deltaY);
+	    sb.append(']');
+	    if(debugMsg != null) {
+		    sb.append(" (Created on: ");
+		    sb.append(debugMsg);
+		    sb.append(')');
+        }
+	    sb.append('}');
+		return sb.toString();
     }
 }

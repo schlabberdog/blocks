@@ -1,13 +1,20 @@
 package com.github.users.schlabberdog.blocks.ui;
 
 import com.github.users.schlabberdog.blocks.board.Board;
+import com.github.users.schlabberdog.blocks.board.BoardSave;
+import com.github.users.schlabberdog.blocks.board.moves.IMove;
+import com.github.users.schlabberdog.blocks.r010.R010Game;
+import com.github.users.schlabberdog.blocks.solver.ISolverDelegate;
 import com.github.users.schlabberdog.blocks.solver.Solver;
+import com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-public class IJGUI {
+public class IJGUI implements ISolverDelegate {
     private BoardView boardView;
     private JButton stepButton;
     private JPanel root;
@@ -15,27 +22,34 @@ public class IJGUI {
     private JLabel stackLabel;
     private JButton fastForwardButton;
     private JButton nextButton;
-    private JButton stackUpButton;
-    private JButton stackDownButton;
     private JLabel numSolutionsLabel;
     private JLabel solImprovLabel;
     private JLabel bestPathLabel;
-    private JButton stackStartButton;
-    private JButton stackEndButton;
     private JSpinner pathStopLength;
     private JSpinner stackLimiterSpinner;
 	private JLabel worstStackLabel;
 	private JCheckBox avoidWorseCheckbox;
+	private JLabel timeTakenLabel;
 
-	private Board board;
-    private Solver solver;
+	private final Board board;
+    private final Solver solver;
 	private Timer timer;
+
+	private Board replyBoard;
+	private BoardSave initialState;
+	private List<IMove> bestSolution = null;
+
+	private long startTime;
+	private long endTime;
 
 //    private int tos;
 
     private IJGUI(Board b,Solver s) {
 	    this.board = b;
 	    this.solver = s;
+
+	    replyBoard = b.copy();
+	    initialState = replyBoard.getSave();
 
         stepButton.addActionListener(new ActionListener() {
             @Override
@@ -55,31 +69,6 @@ public class IJGUI {
                 doNext();
             }
         });
-        stackUpButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                stackUp();
-            }
-        });
-        stackDownButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                stackDown();
-            }
-        });
-
-        stackStartButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                stackStart();
-            }
-        });
-        stackEndButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                stackEnd();
-            }
-        });
 
         pathStopLength.setModel(new SpinnerNumberModel(30,0,Integer.MAX_VALUE,1));
         stackLimiterSpinner.setModel(new SpinnerNumberModel(50,0, Integer.MAX_VALUE,1));
@@ -87,20 +76,15 @@ public class IJGUI {
 	    timer = new Timer(50,new ActionListener() {
 		    @Override
 		    public void actionPerformed(ActionEvent actionEvent) {
+			    endTime = System.currentTimeMillis();
 				validateButtons();
 		    }
 	    });
-	    timer.start();
     }
 
     public void validateButtons() {
 
 /*
-        stackUpButton.setEnabled(!doingFF && tos > 0);
-        stackStartButton.setEnabled(!doingFF && tos > 0);
-
-        stackDownButton.setEnabled(!doingFF && tos+1 < solver.getSaveStack().size());
-        stackEndButton.setEnabled(!doingFF && tos+1 < solver.getSaveStack().size());
 
         stepButton.setEnabled(!doingFF && !solver.isSolved());
         fastForwardButton.setEnabled(!doingFF && !solver.isSolved());
@@ -118,45 +102,14 @@ public class IJGUI {
         bestPathLabel.setText(    String.format("%,d", solver.getBestPathLength()));
 
 	    avoidWorseCheckbox.setSelected(solver.shouldAvoidWorseStacks());
+
+	    long timeTaken = endTime - startTime;
+	    timeTakenLabel.setText(String.format("%02d:%02d:%02d.%03d", TimeUnit.MILLISECONDS.toHours(timeTaken),
+			    TimeUnit.MILLISECONDS.toMinutes(timeTaken),
+			    TimeUnit.MILLISECONDS.toSeconds(timeTaken),
+			    timeTaken%1000));
     }
 
-    public void stackStart() {
-       /* board.applySave(solver.getSaveStack().get((tos = 0)).initialState);
-        validateButtons();*/
-    }
-
-    public void stackEnd() {
-    /*    tos = solver.getSaveStack().size();
-        board.applySave(solver.getSaveStack().get(tos).initialState);
-        validateButtons();*/
-    }
-
-    public void stackUp() {
-     /*   --tos;
-        selectFromStack();
-        validateButtons();*/
-    }
-
-/*
-
-    private void selectFromStack() {
-        if(tos == solver.getSaveStack().size()) {
-            if(solver.getSaveStack().peek().selected != null) {
-                board.applySave(solver.getSaveStack().peek().initialState);
-                board.applyMove(solver.getSaveStack().peek().selected);
-            }
-        }
-        else {
-            board.applySave(solver.getSaveStack().get(tos).initialState);
-        }
-    }
-*/
-
-    public void stackDown() {
-     /*   ++tos;
-        selectFromStack();
-        validateButtons();*/
-    }
 
     public void doNext() {
       /*  solver.skipSolution();
@@ -205,8 +158,21 @@ public class IJGUI {
         boardView = new BoardView(board);
     }
 
-    public static IJGUI Create(Board b, Solver s) {
-	    IJGUI gui = new IJGUI(b,s);
+    public static void main(String[] args) {
+	    try {
+		    UIManager.setLookAndFeel(new NimbusLookAndFeel());
+	    } catch (UnsupportedLookAndFeelException e) {
+		    e.printStackTrace();
+	    }
+
+	    IGame game = new R010Game();
+	    Board board = game.getBoard();
+
+	    Solver solver = new Solver(board,game.getChecker());
+
+	    IJGUI gui = new IJGUI(board,solver);
+
+	    solver.setDelegate(gui);
 
         JFrame frame = new JFrame("IJGUI");
         frame.setContentPane(gui.root);
@@ -214,6 +180,34 @@ public class IJGUI {
         frame.pack();
         frame.setVisible(true);
 
-	    return gui;
+	    solver.solve();
     }
+
+	@Override
+	public void solverStarted(Solver solver) {
+		timer.start();
+		startTime = System.currentTimeMillis();
+		System.out.println("Solver started");
+	}
+
+	@Override
+	public void solutionImproved(Solver solver, int solSize) {
+		//System.out.println("Better solution: "+solSize);
+		bestSolution = solver.getStepList();
+	}
+
+	@Override
+	public void solverDone(Solver solver) {
+		System.out.println("Solver done");
+		//jetzt brauchen wir den timer nicht mehr
+		timer.stop();
+		//einmal müssen wir evtl. von hand noch nacharbeiten
+		validateButtons();
+		endTime = System.currentTimeMillis();
+
+		//lösung anzeigen
+		if(bestSolution != null) {
+			IJSolutionBrowser.Create(replyBoard,initialState,bestSolution);
+		}
+	}
 }

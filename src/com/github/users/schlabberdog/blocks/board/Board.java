@@ -219,4 +219,14 @@ public class Board {
 	public synchronized Coord getBlockCoord(Block block) {
 		return blockMap.get(block);
 	}
+
+	public Board copy() {
+		Board out = new Board(width,height);
+
+		for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
+			out.insertBlockAt(e.getKey(),e.getValue());
+		}
+
+		return out;
+	}
 }
