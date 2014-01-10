@@ -24,11 +24,11 @@ public class LUBlock extends Block {
     @Override
     public void printOntoMap(Coord pos,char[][] m) {
         char c = getRepresentation();
-        m[pos.x][pos.y] = c;
-        m[pos.x+1][pos.y] = c;
-        m[pos.x][pos.y+1] = c;
-        m[pos.x][pos.y+2] = c;
-        m[pos.x+1][pos.y+2] = c;
+        m[pos.y][pos.x] = c;
+        m[pos.y][pos.x+1] = c;
+        m[pos.y+1][pos.x] = c;
+        m[pos.y+2][pos.x] = c;
+        m[pos.y+2][pos.x+1] = c;
     }
 
     @Override

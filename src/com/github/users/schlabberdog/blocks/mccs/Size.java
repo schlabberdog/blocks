@@ -12,8 +12,7 @@ public class Size {
     @Override
     public boolean equals(Object obj) {
         if(obj instanceof Size) {
-            Size o = (Size) obj;
-            return (width == o.width && height == o.height);
+            return (width == ((Size)obj).width && height == ((Size)obj).height);
         }
         return super.equals(obj);
     }

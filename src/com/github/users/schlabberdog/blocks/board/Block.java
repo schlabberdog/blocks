@@ -48,11 +48,16 @@ public abstract class Block {
         };
     }
 
+	/**
+	 * Schreibt eine einfache grafische Repräsentation auf ein Board
+	 * @param origin Die Ursprungsposition (oben links) des Blocks auf dem Board
+	 * @param m Das Ausgabe-Board. Achtung: Die äußere Dimension ist y, die innere x!
+	 */
     public void printOntoMap(Coord origin,char[][] m) {
         char c = getRepresentation();
         for (int x = origin.x; x <(origin.x+width); x++) {
             for (int y = origin.y; y < (origin.y+height); y++) {
-                m[x][y] = c;
+                m[y][x] = c;
             }
         }
     }

@@ -9,9 +9,16 @@ public class Rect {
         this.size = size;
     }
 
+	public Rect(Coord origin, int w, int h) {
+		this(origin,new Size(w,h));
+	}
+
+	public Rect(int x, int y, Size size) {
+		this(new Coord(x,y),size);
+	}
+
     public Rect(int x,int y,int w,int h) {
-        origin = new Coord(x,y);
-        size = new Size(w,h);
+        this(new Coord(x,y),new Size(w,h));
     }
 
     /**

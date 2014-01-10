@@ -24,7 +24,7 @@ public class Board {
         blockMapReverse = new Block[w][h];
     }
 
-	public void insertBlockAt(Block b, Coord c) {
+	public synchronized void insertBlockAt(Block b, Coord c) {
 		//gucken, dass kein block vor dem board landet
 		if(c.x < 0 || c.y < 0)
 			throw new RuntimeException("Versuche Block <"+b+"> an ungültigen Koordinaten ["+c.x+","+c.y+"] abzulegen!");
@@ -50,7 +50,7 @@ public class Board {
 		insertBlockAt(b,new Coord(x,y));
     }
 
-    public void removeBlock(Block b) {
+    public synchronized void removeBlock(Block b) {
         Coord c = blockMap.get(b);
         if(c != null) {
             blockMap.remove(b);
@@ -63,7 +63,7 @@ public class Board {
      * @param rs Der zu prüfende Block
      * @return True oder False
      */
-    public boolean intersectsWithRectSet(Rect[] rs) {
+    public synchronized boolean intersectsWithRectSet(Rect[] rs) {
 	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
 		    if(e.getKey().coversArea(e.getValue(), rs))
 			    return true;
@@ -72,7 +72,7 @@ public class Board {
         return false;
     }
 
-    public boolean intersectsWithRect(Rect r) {
+    public synchronized boolean intersectsWithRect(Rect r) {
 	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
 		    if(e.getKey().coversArea(e.getValue(), r))
 			    return true;
@@ -84,11 +84,11 @@ public class Board {
         return getBlockOriginatingAt(c.x,c.y);
     }
 
-    public Block getBlockOriginatingAt(int x, int y) {
+    public synchronized Block getBlockOriginatingAt(int x, int y) {
         return blockMapReverse[x][y];
     }
 
-    public Block getBlockCovering(int x, int y) {
+    public synchronized Block getBlockCovering(int x, int y) {
         Rect r = new Rect(x,y,1,1);
         for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
             if(e.getKey().coversArea(e.getValue(), r))
@@ -97,44 +97,34 @@ public class Board {
         return null;
     }
 
-    public Map<Block,Coord> getBlockMap() {
-        return blockMap;
-    }
-
     /**
      * Der Board Hash identifiziert eine eindeutige Anordnung von Elementen
      * @return Ein String
      */
-    public String getBoardHash() {
-        StringBuilder sb = new StringBuilder();
+    public synchronized String getBoardHash() {
+        StringBuilder sb = new StringBuilder((width+1)*height+1);
 
         sb.append('/');
         //zuerst eine map für die elemente erzeugen
-        char[][] map = new char[width][height];
+        char[][] map = new char[height][width];
 
         //alle elemente auf die map packen
 	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
 		    e.getKey().printOntoMap(e.getValue(), map);
 	    }
 
-        //reihenweise drucken
-        for (int y = 0; y < height; y++) {
-            //spalten drucken
-            for (int x = 0; x < width; x++) {
-                char c = map[x][y];
-                if(c == '\0')
-                    c = ' '; //leere flächen mit leerzeichen füllen
-                sb.append(c);
-            }
-            sb.append('/');
-        }
+	    //das ganze auf einen string reduzieren
+	    for (char[] line : map) {
+		    sb.append(line);
+		    sb.append('/');
+	    }
 
-        return sb.toString();
+        return sb.toString().replace('\0',' '); //die NULs sind unveränderte felder im array
     }
 
-    public void print(PrintStream ps) {
+    public synchronized void print(PrintStream ps) {
         //zuerst eine map für die elemente erzeugen
-        char[][] map = new char[width][height];
+        char[][] map = new char[height][width];
 
         //oberen rand drucken
         ps.print('+');
@@ -154,13 +144,12 @@ public class Board {
             ps.print('|');
             //spalten drucken
             for (int x = 0; x < width; x++) {
-                char c = map[x][y];
+                char c = map[y][x];
                 if(c == '\0')
                     c = ' '; //leere flächen mit leerzeichen füllen
                 ps.print(c);
             }
-            ps.print('|');
-            ps.println();
+            ps.println('|');
         }
 
         //unteren rand drucken
@@ -176,7 +165,7 @@ public class Board {
      * Gibt eine Liste aller Möglichen Schritte aus dem aktuellen Boardzustand an
      * @return .
      */
-    public ArrayList<IMove> getAlternatives() {
+    public synchronized ArrayList<IMove> getAlternatives() {
         ArrayList<IMove> alts = new ArrayList<IMove>();
 	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
 			e.getKey().addAlts(e.getValue(),this,alts);
@@ -188,7 +177,7 @@ public class Board {
      * Erzeugt ein Snapshot des Boards im aktuellen Zustand
      * @return Der Snapshot
      */
-    public BoardSave getSave() {
+    public synchronized BoardSave getSave() {
         BoardSave save = new BoardSave();
 
 	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
@@ -206,7 +195,7 @@ public class Board {
         alt.apply(this);
     }
 
-    public void clear() {
+    public synchronized void clear() {
         for (Coord coord : blockMap.values()) {
             blockMapReverse[coord.x][coord.y] = null;
         }
@@ -218,7 +207,7 @@ public class Board {
      * Stellt einen Snapshot des Boards wieder her
      * @param save Der Snapshot, der wiederhergestellt werden soll
      */
-    public void applySave(BoardSave save) {
+    public synchronized void applySave(BoardSave save) {
         //alle aktuellen blocks entfernen
         clear();
         //alle blocks im save wiederherstellen
@@ -227,17 +216,7 @@ public class Board {
         }
     }
 
-    public Board copy() { //TODO thread safety
-        Board out = new Board(width,height);
-
-	    for (Map.Entry<Block, Coord> e : blockMap.entrySet()) {
-		    out.insertBlockAt(e.getKey(),e.getValue());
-	    }
-
-        return out;
-    }
-
-	public Coord getBlockCoord(Block block) {
+	public synchronized Coord getBlockCoord(Block block) {
 		return blockMap.get(block);
 	}
 }

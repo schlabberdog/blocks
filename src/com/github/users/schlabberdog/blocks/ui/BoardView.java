@@ -33,7 +33,7 @@ public class BoardView extends JComponent {
 
 	    g2.setColor(Color.black);
 
-        Board board = this.board.copy();
+        Map<Block,Coord> save = board.getSave();
 
         //grid zeichnen
         double boxWidth  = (getWidth()-7) / board.width;
@@ -53,7 +53,7 @@ public class BoardView extends JComponent {
         }
 
         //blocks zeichnen
-        for (Map.Entry<Block,Coord> e : board.getBlockMap().entrySet()) {
+        for (Map.Entry<Block,Coord> e : save.entrySet()) {
 			Block blk = e.getKey();
             g2.setColor(blk.getColor());
             g2.fill(blk.drawShape(e.getValue(), boxWidth, boxHeight));
