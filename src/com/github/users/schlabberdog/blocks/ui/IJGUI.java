@@ -6,13 +6,13 @@ import com.github.users.schlabberdog.blocks.board.moves.IMove;
 import com.github.users.schlabberdog.blocks.r010.R010Game;
 import com.github.users.schlabberdog.blocks.solver.ISolverDelegate;
 import com.github.users.schlabberdog.blocks.solver.Solver;
+import com.github.users.schlabberdog.blocks.w32.W32Game;
 import com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class IJGUI implements ISolverDelegate {
     private BoardView boardView;
@@ -104,10 +104,14 @@ public class IJGUI implements ISolverDelegate {
 	    avoidWorseCheckbox.setSelected(solver.shouldAvoidWorseStacks());
 
 	    long timeTaken = endTime - startTime;
-	    timeTakenLabel.setText(String.format("%02d:%02d:%02d.%03d", TimeUnit.MILLISECONDS.toHours(timeTaken),
-			    TimeUnit.MILLISECONDS.toMinutes(timeTaken),
-			    TimeUnit.MILLISECONDS.toSeconds(timeTaken),
-			    timeTaken%1000));
+	    long millis = timeTaken%1000;
+	    timeTaken = (timeTaken - millis) / 1000;
+	    long seconds = timeTaken%60;
+	    timeTaken = (timeTaken - seconds) / 60;
+	    long minutes = timeTaken % 60;
+	    timeTaken = (timeTaken - minutes) / 60; //== hours
+
+	    timeTakenLabel.setText(String.format("%02d:%02d:%02d.%03d", timeTaken, minutes, seconds, millis));
     }
 
 
