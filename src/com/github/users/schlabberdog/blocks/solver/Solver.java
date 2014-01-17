@@ -24,6 +24,7 @@ public class Solver {
 	int worstStack;
 
 	boolean avoidWorseStacks = true;
+	int stackDepthLimit = 0;
 
     /* In dem Array bewahren wir uns alle Schritte auf, die wir gemacht haben */
     private LeveledSteps steps = new LeveledSteps();
@@ -35,7 +36,7 @@ public class Solver {
         this.checker = checker;
     }
 
-    public void solve() {
+    public synchronized void solve() {
 	    solverStarted();
 
         steps.clear();
@@ -118,6 +119,9 @@ public class Solver {
     private void goDeeper() {
 	    //schlechtere stacks können eigentlich keine besseren lösungen produzieren
 		if(avoidWorseStacks && btStack.size() > minPathLength)
+			return;
+	    //über limit?
+	    if(stackDepthLimit > 0 && btStack.size() > stackDepthLimit)
 			return;
 
         //sicherung machen
@@ -231,8 +235,12 @@ public class Solver {
 		return steps;
 	}
 
-	public void setDelegate(ISolverDelegate delegate) {
+	public synchronized void setDelegate(ISolverDelegate delegate) {
 		this.delegate = delegate;
+	}
+
+	public synchronized void setAvoidWorseStacks(boolean v) {
+		avoidWorseStacks = v;
 	}
 
 	private void solutionImproved(int solSize) {
@@ -248,5 +256,9 @@ public class Solver {
 	private void solverDone() {
 		if(delegate != null)
 			delegate.solverDone(this);
+	}
+
+	public synchronized void setStackDepthLimit(int stackDepthLimit) {
+		this.stackDepthLimit = stackDepthLimit;
 	}
 }

@@ -13,6 +13,7 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 public class IJGUI implements ISolverDelegate {
     private BoardView boardView;
@@ -42,6 +43,8 @@ public class IJGUI implements ISolverDelegate {
 	private long startTime;
 	private long endTime;
 
+	private static final CountDownLatch startOnMainBlock = new CountDownLatch(1);
+
 //    private int tos;
 
     private IJGUI(Board b,Solver s) {
@@ -60,7 +63,7 @@ public class IJGUI implements ISolverDelegate {
         fastForwardButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                createFFAction();
+                startSolve();
             }
         });
         nextButton.addActionListener(new ActionListener() {
@@ -80,7 +83,20 @@ public class IJGUI implements ISolverDelegate {
 				validateButtons();
 		    }
 	    });
+
+	    s.setDelegate(this);
     }
+
+	private void startSolve() {
+		//solver mit UI werten aktualisieren
+		solver.setStackDepthLimit((Integer) stackLimiterSpinner.getModel().getValue());
+		solver.setAvoidWorseStacks(avoidWorseCheckbox.isSelected());
+		//start
+		stackLimiterSpinner.setEnabled(false);
+		avoidWorseCheckbox.setEnabled(false);
+		fastForwardButton.setEnabled(false);
+		startOnMainBlock.countDown();
+	}
 
     public void validateButtons() {
 
@@ -119,9 +135,9 @@ public class IJGUI implements ISolverDelegate {
       /*  solver.skipSolution();
         validateButtons();*/
     }
-
+     /*
     public void createFFAction() {
-     /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
+  solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
 
         Runnable r = new Runnable() {
             @Override
@@ -149,9 +165,9 @@ public class IJGUI implements ISolverDelegate {
         };
 
         SwingUtilities.invokeLater(r);
-*/
-    }
 
+    }
+*/
     public void doStep() {
      /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
         solver.step();
@@ -162,21 +178,19 @@ public class IJGUI implements ISolverDelegate {
         boardView = new BoardView(board);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 	    try {
 		    UIManager.setLookAndFeel(new NimbusLookAndFeel());
 	    } catch (UnsupportedLookAndFeelException e) {
 		    e.printStackTrace();
 	    }
 
-	    IGame game = new R010Game();
+	    IGame game = new W32Game();
 	    Board board = game.getBoard();
 
 	    Solver solver = new Solver(board,game.getChecker());
 
 	    IJGUI gui = new IJGUI(board,solver);
-
-	    solver.setDelegate(gui);
 
         JFrame frame = new JFrame("IJGUI");
         frame.setContentPane(gui.root);
@@ -184,6 +198,8 @@ public class IJGUI implements ISolverDelegate {
         frame.pack();
         frame.setVisible(true);
 
+	    //wir recyclen einfach den main() thread für den Solver. der hat ja sonst nix zu tun :)
+	    startOnMainBlock.await();
 	    solver.solve();
     }
 
