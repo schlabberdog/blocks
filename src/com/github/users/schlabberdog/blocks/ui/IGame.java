@@ -9,4 +9,6 @@ public interface IGame {
 	public Board getBoard();
 
 	public ISolutionChecker getChecker();
+
+    String getTitle();
 }

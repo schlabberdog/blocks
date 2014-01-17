@@ -13,7 +13,6 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 
 public class IJGUI implements ISolverDelegate {
     private BoardView boardView;
@@ -42,8 +41,7 @@ public class IJGUI implements ISolverDelegate {
 
 	private long startTime;
 	private long endTime;
-
-	private static final CountDownLatch startOnMainBlock = new CountDownLatch(1);
+    private JFrame frame;
 
 //    private int tos;
 
@@ -84,19 +82,11 @@ public class IJGUI implements ISolverDelegate {
 		    }
 	    });
 
+
+        avoidWorseCheckbox.setSelected(solver.shouldAvoidWorseStacks());
+
 	    s.setDelegate(this);
     }
-
-	private void startSolve() {
-		//solver mit UI werten aktualisieren
-		solver.setStackDepthLimit((Integer) stackLimiterSpinner.getModel().getValue());
-		solver.setAvoidWorseStacks(avoidWorseCheckbox.isSelected());
-		//start
-		stackLimiterSpinner.setEnabled(false);
-		avoidWorseCheckbox.setEnabled(false);
-		fastForwardButton.setEnabled(false);
-		startOnMainBlock.countDown();
-	}
 
     public void validateButtons() {
 
@@ -117,8 +107,6 @@ public class IJGUI implements ISolverDelegate {
 	    worstStackLabel.setText(  String.format("%,d", solver.getWorstStack()));
         bestPathLabel.setText(    String.format("%,d", solver.getBestPathLength()));
 
-	    avoidWorseCheckbox.setSelected(solver.shouldAvoidWorseStacks());
-
 	    long timeTaken = endTime - startTime;
 	    long millis = timeTaken%1000;
 	    timeTaken = (timeTaken - millis) / 1000;
@@ -135,6 +123,25 @@ public class IJGUI implements ISolverDelegate {
       /*  solver.skipSolution();
         validateButtons();*/
     }
+
+    public void startSolve() {
+        //gui deaktivieren
+        fastForwardButton.setEnabled(false);
+        stackLimiterSpinner.setEnabled(false);
+        avoidWorseCheckbox.setEnabled(false);
+        //werte kopieren
+        solver.setStackDepthLimit(((Number) stackLimiterSpinner.getValue()).intValue());
+        solver.setAvoidWorseStacks(avoidWorseCheckbox.isSelected());
+        //dafür starten wir einen eigene Thread
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                solver.solve();
+            }
+        });
+        t.start();
+
+     /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
      /*
     public void createFFAction() {
   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
@@ -165,9 +172,9 @@ public class IJGUI implements ISolverDelegate {
         };
 
         SwingUtilities.invokeLater(r);
-
-    }
 */
+    }
+
     public void doStep() {
      /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
         solver.step();
@@ -178,19 +185,35 @@ public class IJGUI implements ISolverDelegate {
         boardView = new BoardView(board);
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static IJGUI Create(Board board, Solver solver) {
+        IJGUI gui = new IJGUI(board,solver);
+
+        solver.setDelegate(gui);
+
+        JFrame frame = new JFrame("IJGUI");
+        frame.setContentPane(gui.root);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.pack();
+        frame.setVisible(true);
+
+        gui.frame = frame;
+
+        return gui;
+    }
+
+    public static void main(String[] args) {
 	    try {
 		    UIManager.setLookAndFeel(new NimbusLookAndFeel());
 	    } catch (UnsupportedLookAndFeelException e) {
 		    e.printStackTrace();
 	    }
 
-	    IGame game = new W32Game();
+	    IGame game = new R010Game();
 	    Board board = game.getBoard();
 
 	    Solver solver = new Solver(board,game.getChecker());
 
-	    IJGUI gui = new IJGUI(board,solver);
+        IJGUI gui = IJGUI.Create(board,solver);
 
         JFrame frame = new JFrame("IJGUI");
         frame.setContentPane(gui.root);
@@ -199,7 +222,6 @@ public class IJGUI implements ISolverDelegate {
         frame.setVisible(true);
 
 	    //wir recyclen einfach den main() thread für den Solver. der hat ja sonst nix zu tun :)
-	    startOnMainBlock.await();
 	    solver.solve();
     }
 
@@ -207,7 +229,6 @@ public class IJGUI implements ISolverDelegate {
 	public void solverStarted(Solver solver) {
 		timer.start();
 		startTime = System.currentTimeMillis();
-		System.out.println("Solver started");
 	}
 
 	@Override
@@ -218,7 +239,6 @@ public class IJGUI implements ISolverDelegate {
 
 	@Override
 	public void solverDone(Solver solver) {
-		System.out.println("Solver done");
 		//jetzt brauchen wir den timer nicht mehr
 		timer.stop();
 		//einmal müssen wir evtl. von hand noch nacharbeiten
@@ -229,5 +249,8 @@ public class IJGUI implements ISolverDelegate {
 		if(bestSolution != null) {
 			IJSolutionBrowser.Create(replyBoard,initialState,bestSolution);
 		}
+        else {
+            JOptionPane.showMessageDialog(frame,"Mit den gegebenen Einstellungen konnte keine Lösung gefunden werden!","Keine Lösung gefunden",JOptionPane.ERROR_MESSAGE);
+        }
 	}
 }

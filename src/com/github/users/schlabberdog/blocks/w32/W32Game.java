@@ -41,4 +41,9 @@ public class W32Game implements IGame {
 			}
 		};
 	}
+
+    @Override
+    public String getTitle() {
+        return "Web-Rätsel w32";
+    }
 }

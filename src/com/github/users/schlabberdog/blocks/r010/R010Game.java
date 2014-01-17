@@ -43,4 +43,9 @@ public class R010Game implements IGame {
 			}
 		};
 	}
+
+    @Override
+    public String getTitle() {
+        return "Rätsel 010";
+    }
 }
