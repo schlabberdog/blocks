@@ -9,9 +9,11 @@ import com.github.users.schlabberdog.blocks.solver.Solver;
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.List;
 
-public class IJGUI implements ISolverDelegate {
+public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
     private BoardView boardView;
     private JButton stepButton;
     private JPanel root;
@@ -32,20 +34,21 @@ public class IJGUI implements ISolverDelegate {
     private final Solver solver;
 	private Timer timer;
 
-	private Board replyBoard;
-	private BoardSave initialState;
+	private final BoardSave initialState;
 	private List<IMove> bestSolution = null;
 
-	private long startTime;
-	private long endTime;
+	private Stopwatch stopwatch;
     private JFrame frame;
+
+	private Thread solverThread;
+	private boolean isSolverRunning = false;
+	private int stopAtCount = 0;
 
     private IJGUI(Board b,Solver s) {
 	    this.board = b;
 	    this.solver = s;
 
-	    replyBoard = b.copy();
-	    initialState = replyBoard.getSave();
+	    initialState = board.getSave();
 
         stepButton.addActionListener(new ActionListener() {
             @Override
@@ -72,11 +75,11 @@ public class IJGUI implements ISolverDelegate {
 	    timer = new Timer(50,new ActionListener() {
 		    @Override
 		    public void actionPerformed(ActionEvent actionEvent) {
-			    endTime = System.currentTimeMillis();
 				validateButtons();
 		    }
 	    });
 
+		stopwatch = new Stopwatch();
 
         avoidWorseCheckbox.setSelected(solver.shouldAvoidWorseStacks());
 
@@ -101,7 +104,7 @@ public class IJGUI implements ISolverDelegate {
 	    worstStackLabel.setText(  String.format("%,d", solver.getWorstStack()));
         bestPathLabel.setText(    String.format("%,d", solver.getBestPathLength()));
 
-	    long timeTaken = endTime - startTime;
+	    long timeTaken = stopwatch.getElapsedTime();
 	    long millis = timeTaken%1000;
 	    timeTaken = (timeTaken - millis) / 1000;
 	    long seconds = timeTaken%60;
@@ -114,8 +117,18 @@ public class IJGUI implements ISolverDelegate {
 
 
     public synchronized void doNext() {
-      /*  solver.skipSolution();
-        validateButtons();*/
+		//zuerst den button wieder deaktivieren
+		nextButton.setEnabled(false);
+		pathStopLength.setEnabled(false);
+
+		if(isSolverRunning) {
+			//ggf. veränderten wert erneut kopieren
+			stopAtCount = ((Number)pathStopLength.getValue()).intValue();
+			//die uhr weiterlaufen lassen
+			stopwatch.start();
+			//dann den solver auch weiter laufen lassen
+			solverThread.interrupt();
+		}
     }
 
     public synchronized void startSolve() {
@@ -123,17 +136,22 @@ public class IJGUI implements ISolverDelegate {
         fastForwardButton.setEnabled(false);
         stackLimiterSpinner.setEnabled(false);
         avoidWorseCheckbox.setEnabled(false);
+		pathStopLength.setEnabled(false);
+		//uhr zurücksetzen
+		stopwatch.reset();
         //werte kopieren
         solver.setStackDepthLimit(((Number) stackLimiterSpinner.getValue()).intValue());
         solver.setAvoidWorseStacks(avoidWorseCheckbox.isSelected());
-        //dafür starten wir einen eigenen Thread
-        Thread t = new Thread(new Runnable() {
+		stopAtCount = ((Number)pathStopLength.getValue()).intValue();
+        //für den solver benutzen wir einen eigenen Thread
+		solverThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 solver.solve();
             }
         });
-        t.start();
+		solverThread.setUncaughtExceptionHandler(this);
+		solverThread.start();
 
      /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
      /*
@@ -199,29 +217,110 @@ public class IJGUI implements ISolverDelegate {
 	@Override
 	public synchronized void solverStarted(Solver solver) {
 		timer.start();
-		startTime = System.currentTimeMillis();
+		stopwatch.start();
+		isSolverRunning = true;
 	}
 
 	@Override
-	public synchronized void solutionImproved(Solver solver, int solSize) {
+	public void solutionImproved(Solver solver, int solSize) {
 		//System.out.println("Better solution: "+solSize);
 		bestSolution = solver.getStepList();
+
+		//jetzt können wir den solver trappen, wenn er halten soll
+		if(stopAtCount > 0 && solver.getBestPathLength() <= stopAtCount) {
+			//zuerst mal die uhr anhalten
+			stopwatch.stop();
+			//lösung im GUI thread anzeigen
+			SwingUtilities.invokeLater(new Runnable() {
+				@Override
+				public void run() {
+					//anzeige der lösung starten
+					IJSolutionBrowser.Create(board.copy(),initialState,bestSolution);
+					//weiter button aktivieren
+					nextButton.setEnabled(true);
+					//verändern des halte-limits erlauben
+					pathStopLength.setEnabled(true);
+					//gui neu zeichnen
+					validateButtons();
+				}
+			});
+			//solver anhalten
+			try {
+				//noinspection InfiniteLoopStatement
+				while(true) {
+					Thread.sleep(1000); //jaja, wait() ist vieeeel cooler...
+				}
+			} catch (InterruptedException e) {
+				//die exception ist beabsichtigt, damit es weitergeht
+			}
+		}
 	}
 
 	@Override
 	public synchronized void solverDone(Solver solver) {
+		stopRun();
+
+		//der solver thread ruft das hier auf, GUI aktionen müssen aber im GUI thread passieren
+		SwingUtilities.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				//einmal müssen wir evtl. von hand noch nacharbeiten
+				validateButtons();
+				//lösung anzeigen
+				if(bestSolution != null) {
+					IJSolutionBrowser.Create(board.copy(),initialState,bestSolution);
+				}
+				else {
+					JOptionPane.showMessageDialog(frame,"Mit den gegebenen Einstellungen konnte keine Lösung gefunden werden!","Keine Lösung gefunden",JOptionPane.ERROR_MESSAGE);
+				}
+			}
+		});
+
+	}
+
+	private void stopRun() {
 		//jetzt brauchen wir den timer nicht mehr
 		timer.stop();
-		//einmal müssen wir evtl. von hand noch nacharbeiten
-		validateButtons();
-		endTime = System.currentTimeMillis();
+		//uhr anhalten, wir sind am ende
+		stopwatch.stop();
 
-		//lösung anzeigen
-		if(bestSolution != null) {
-			IJSolutionBrowser.Create(replyBoard,initialState,bestSolution);
+		isSolverRunning = false;
+	}
+
+	@Override
+	public void uncaughtException(Thread thread, Throwable throwable) {
+		if(thread != solverThread) {
+			//Kennen wir uns?
+			throwable.printStackTrace(System.err);
+			return;
 		}
-        else {
-            JOptionPane.showMessageDialog(frame,"Mit den gegebenen Einstellungen konnte keine Lösung gefunden werden!","Keine Lösung gefunden",JOptionPane.ERROR_MESSAGE);
-        }
+		//auf jeden fall machen wir jetzt nix mehr...
+		stopRun();
+		//stracktrace in string umwandeln
+		StringWriter sw = new StringWriter();
+		PrintWriter pw = new PrintWriter(sw);
+		throwable.printStackTrace(pw);
+		final String stackTrace = sw.toString()
+				.replaceAll("&","&amp;")
+				.replaceAll("<","&lt;")
+				.replaceAll(">","&gt;")
+				.replaceAll("\n","<br>")
+				.replaceAll("\r","")
+				.replaceAll("\t", "  ");
+		//dialog anzeigen
+		SwingUtilities.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				//einmal müssen wir evtl. von hand noch nacharbeiten
+				validateButtons();
+				//error
+				JOptionPane.showMessageDialog(
+						frame,
+						"<html>Der Solver ist beim Finden einer Lösung abgestürzt.<br><br><pre>"+stackTrace+"</pre></html>",
+						"Solver abgestürzt",
+						JOptionPane.ERROR_MESSAGE
+				);
+			}
+		});
 	}
 }

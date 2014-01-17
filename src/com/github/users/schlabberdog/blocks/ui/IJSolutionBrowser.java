@@ -86,11 +86,6 @@ public class IJSolutionBrowser {
 		boardView.repaint();
 	}
 
-	private void gotoFirstStep() {
-		updateBoard(-1);
-		validateUI();
-	}
-
 	private void updateBoard(int newStep) {
 		//keine änderung
 		if(newStep == step)
@@ -111,6 +106,11 @@ public class IJSolutionBrowser {
 		step = newStep;
 	}
 
+	private void gotoFirstStep() {
+		updateBoard(-1);
+		validateUI();
+	}
+
 	private void gotoPreviousStep() {
 		updateBoard(step-1);
 		validateUI();
@@ -127,6 +127,9 @@ public class IJSolutionBrowser {
 	}
 
 	private void createUIComponents() {
+		//zu aller erst müssen wir das board zurückspulen...weiß ja niemand wie das grade aussieht
+		board.applySave(initialState);
+
 		boardView = new BoardView(board);
 	}
 
