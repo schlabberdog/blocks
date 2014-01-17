@@ -32,7 +32,7 @@ public class IJSolutionBrowser {
 		frame.setContentPane(browser.formRoot);
 		frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		frame.pack();
-
+		frame.setMinimumSize(frame.getSize());
 		browser.validateUI();
 
 		frame.setVisible(true);

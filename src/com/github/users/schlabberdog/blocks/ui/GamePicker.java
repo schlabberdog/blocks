@@ -46,6 +46,10 @@ public class GamePicker {
 
     private void createGame() {
         GameDropdownItem item = (GameDropdownItem) gameDropdown.getSelectedItem();
+
+		if(item == null)
+			return;
+
         IGame game = item.game;
         Board board = game.getBoard();
 
@@ -56,15 +60,17 @@ public class GamePicker {
 
     public static void main(String[] args) {
         try {
-            UIManager.setLookAndFeel(new NimbusLookAndFeel());
-        } catch (UnsupportedLookAndFeelException e) {
-            e.printStackTrace();
-        }
+			//macht auch nix wenn das fehlschlägt..
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+			e.printStackTrace();
+		}
 
-        JFrame frame = new JFrame("GamePicker");
+		JFrame frame = new JFrame("GamePicker");
         frame.setContentPane(new GamePicker().rootPanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.pack();
+		frame.setResizable(false);
         frame.setVisible(true);
     }
 }

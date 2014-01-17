@@ -3,11 +3,8 @@ package com.github.users.schlabberdog.blocks.ui;
 import com.github.users.schlabberdog.blocks.board.Board;
 import com.github.users.schlabberdog.blocks.board.BoardSave;
 import com.github.users.schlabberdog.blocks.board.moves.IMove;
-import com.github.users.schlabberdog.blocks.r010.R010Game;
 import com.github.users.schlabberdog.blocks.solver.ISolverDelegate;
 import com.github.users.schlabberdog.blocks.solver.Solver;
-import com.github.users.schlabberdog.blocks.w32.W32Game;
-import com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
@@ -42,8 +39,6 @@ public class IJGUI implements ISolverDelegate {
 	private long startTime;
 	private long endTime;
     private JFrame frame;
-
-//    private int tos;
 
     private IJGUI(Board b,Solver s) {
 	    this.board = b;
@@ -85,10 +80,9 @@ public class IJGUI implements ISolverDelegate {
 
         avoidWorseCheckbox.setSelected(solver.shouldAvoidWorseStacks());
 
-	    s.setDelegate(this);
     }
 
-    public void validateButtons() {
+    public synchronized void validateButtons() {
 
 /*
 
@@ -119,12 +113,12 @@ public class IJGUI implements ISolverDelegate {
     }
 
 
-    public void doNext() {
+    public synchronized void doNext() {
       /*  solver.skipSolution();
         validateButtons();*/
     }
 
-    public void startSolve() {
+    public synchronized void startSolve() {
         //gui deaktivieren
         fastForwardButton.setEnabled(false);
         stackLimiterSpinner.setEnabled(false);
@@ -132,7 +126,7 @@ public class IJGUI implements ISolverDelegate {
         //werte kopieren
         solver.setStackDepthLimit(((Number) stackLimiterSpinner.getValue()).intValue());
         solver.setAvoidWorseStacks(avoidWorseCheckbox.isSelected());
-        //dafür starten wir einen eigene Thread
+        //dafür starten wir einen eigenen Thread
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -175,7 +169,7 @@ public class IJGUI implements ISolverDelegate {
 */
     }
 
-    public void doStep() {
+    public synchronized void doStep() {
      /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
         solver.step();
         validateButtons();*/
@@ -194,6 +188,7 @@ public class IJGUI implements ISolverDelegate {
         frame.setContentPane(gui.root);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.pack();
+		frame.setMinimumSize(frame.getSize());
         frame.setVisible(true);
 
         gui.frame = frame;
@@ -201,44 +196,20 @@ public class IJGUI implements ISolverDelegate {
         return gui;
     }
 
-    public static void main(String[] args) {
-	    try {
-		    UIManager.setLookAndFeel(new NimbusLookAndFeel());
-	    } catch (UnsupportedLookAndFeelException e) {
-		    e.printStackTrace();
-	    }
-
-	    IGame game = new R010Game();
-	    Board board = game.getBoard();
-
-	    Solver solver = new Solver(board,game.getChecker());
-
-        IJGUI gui = IJGUI.Create(board,solver);
-
-        JFrame frame = new JFrame("IJGUI");
-        frame.setContentPane(gui.root);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.pack();
-        frame.setVisible(true);
-
-	    //wir recyclen einfach den main() thread für den Solver. der hat ja sonst nix zu tun :)
-	    solver.solve();
-    }
-
 	@Override
-	public void solverStarted(Solver solver) {
+	public synchronized void solverStarted(Solver solver) {
 		timer.start();
 		startTime = System.currentTimeMillis();
 	}
 
 	@Override
-	public void solutionImproved(Solver solver, int solSize) {
+	public synchronized void solutionImproved(Solver solver, int solSize) {
 		//System.out.println("Better solution: "+solSize);
 		bestSolution = solver.getStepList();
 	}
 
 	@Override
-	public void solverDone(Solver solver) {
+	public synchronized void solverDone(Solver solver) {
 		//jetzt brauchen wir den timer nicht mehr
 		timer.stop();
 		//einmal müssen wir evtl. von hand noch nacharbeiten

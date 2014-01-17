@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="IJGUI" type="Application" factoryName="Application" nameIsGenerated="true">
-    <option name="MAIN_CLASS_NAME" value="com.github.users.schlabberdog.blocks.ui.IJGUI" />
+  <configuration default="false" name="CLI" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.github.users.schlabberdog.blocks.ui.CliUI" />
     <option name="VM_PARAMETERS" value="" />
     <option name="PROGRAM_PARAMETERS" value="" />
     <option name="WORKING_DIRECTORY" value="file://$MODULE_DIR$" />
