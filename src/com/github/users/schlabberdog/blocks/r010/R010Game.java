@@ -7,7 +7,7 @@ import com.github.users.schlabberdog.blocks.mccs.Coord;
 import com.github.users.schlabberdog.blocks.solver.ISolutionChecker;
 import com.github.users.schlabberdog.blocks.ui.IGame;
 
-public class R010Game implements IGame {
+public class R010Game implements IGame, ISolutionChecker {
 
 	private final Block kblock = new KBlock();
 
@@ -34,18 +34,18 @@ public class R010Game implements IGame {
 
 	@Override
 	public ISolutionChecker getChecker() {
-		return new ISolutionChecker() {
-			@Override
-			public boolean checkBoard(Board b) {
-				//gelöst ist das ganze, wenn sich der kblock mit origin bei 1,0 befindet
-				Coord kcoord = b.getBlockCoord(kblock);
-				return kcoord.x == 1 && kcoord.y == 0;
-			}
-		};
+		return this;
 	}
 
     @Override
     public String getTitle() {
         return "Rätsel 010";
     }
+
+	@Override
+	public boolean checkBoard(Board board) {
+		//gelöst ist das ganze, wenn sich der kblock mit origin bei 1,0 befindet
+		Coord kcoord = board.getBlockCoord(kblock);
+		return kcoord.x == 1 && kcoord.y == 0;
+	}
 }

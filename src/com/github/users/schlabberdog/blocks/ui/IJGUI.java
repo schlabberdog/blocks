@@ -59,7 +59,7 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
         fastForwardButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                startSolve();
+				startSolve();
             }
         });
         nextButton.addActionListener(new ActionListener() {
@@ -69,8 +69,8 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
             }
         });
 
-        pathStopLength.setModel(new SpinnerNumberModel(30,0,Integer.MAX_VALUE,1));
-        stackLimiterSpinner.setModel(new SpinnerNumberModel(50,0, Integer.MAX_VALUE,1));
+        pathStopLength.setModel(new SpinnerNumberModel(0,0,Integer.MAX_VALUE,1));
+        stackLimiterSpinner.setModel(new SpinnerNumberModel(0,0, Integer.MAX_VALUE,1));
 
 	    timer = new Timer(50,new ActionListener() {
 		    @Override
@@ -87,14 +87,6 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 
     public synchronized void validateButtons() {
 
-/*
-
-        stepButton.setEnabled(!doingFF && !solver.isSolved());
-        fastForwardButton.setEnabled(!doingFF && !solver.isSolved());
-        nextButton.setEnabled(!doingFF && solver.isSolved());
-
-        pathStopLength.setEnabled(!doingFF && !solver.isSolved());
-*/
         boardView.repaint();
 
 	    checkCountLabel.setText(  String.format("%,d", solver.getCheckCount()));
@@ -147,50 +139,16 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 		solverThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                solver.solve();
+				solver.solve();
             }
         });
 		solverThread.setUncaughtExceptionHandler(this);
 		solverThread.start();
 
-     /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
-     /*
-    public void createFFAction() {
-  solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
-
-        Runnable r = new Runnable() {
-            @Override
-            public void run() {
-                while(true) {
-                    doStep();
-
-                    if (solver.isSolved()) {
-                        int stopNum = ((SpinnerNumberModel)pathStopLength.getModel()).getNumber().intValue();
-
-                        if(stopNum > 0) {
-                            //gleich weiterlaufen, wenn wir da nicht anhalten sollen
-                            if(solver.getBestPathLength() > stopNum) {
-                                doNext();
-                                continue;
-                            }
-                        }
-                        validateButtons();
-                        return;
-                    }
-                    SwingUtilities.invokeLater(this);
-                    return;
-                }
-            }
-        };
-
-        SwingUtilities.invokeLater(r);
-*/
     }
 
     public synchronized void doStep() {
-     /*   solver.setStackLimit(((SpinnerNumberModel) stackLimiterSpinner.getModel()).getNumber().intValue());
-        solver.step();
-        validateButtons();*/
+
     }
 
     private void createUIComponents() {

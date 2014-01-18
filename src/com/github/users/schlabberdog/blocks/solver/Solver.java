@@ -17,14 +17,14 @@ public class Solver {
 
 	private ISolverDelegate delegate;
 
-    long checkCount;
-    int solutionCount;
-    int solutionImprovedCount;
-    int minPathLength;
-	int worstStack;
+    private long checkCount;
+    private int solutionCount;
+    private int solutionImprovedCount;
+    private int bestPathLength;
+	private int worstStack;
 
-	boolean avoidWorseStacks = true;
-	int stackDepthLimit = 0;
+	private boolean avoidWorseStacks = true;
+	private int stackDepthLimit = 0;
 
     /* In dem Array bewahren wir uns alle Schritte auf, die wir gemacht haben */
     private LeveledSteps steps = new LeveledSteps();
@@ -45,7 +45,7 @@ public class Solver {
         solutionCount = 0;
         solutionImprovedCount = -1;
 	    worstStack = 0;
-	    minPathLength = Integer.MAX_VALUE;
+	    bestPathLength = Integer.MAX_VALUE;
         //ausgangssituation auf level 0 (ungschlagbar)
         steps.pushOnLevel(board.getBoardHash(),0);
         //um das ganze anzustoßen müssen wir zuerst die alternativen für Schritt 0 aufstellen
@@ -103,14 +103,14 @@ public class Solver {
 		if(checker.checkBoard(board)) {
 			solutionCount++;
 
-			int solSize = (btStack.size() - 1); //-1 ist notwendig weil die ausgangsposition auch auf dem stack liegt
+			int pathLength = (btStack.size() - 1); //-1 ist notwendig weil die ausgangsposition auch auf dem stack liegt
 
 			//uns interessieren nur lösungen, die besser sind als bereits bekannte
-			if(solSize < minPathLength) {
+			if(pathLength < bestPathLength) {
 				solutionImprovedCount++;
-				minPathLength = solSize;
+				bestPathLength = pathLength;
 
-				solutionImproved(solSize);
+				solutionImproved(pathLength);
 			}
 		}
 	}
@@ -118,7 +118,7 @@ public class Solver {
 
     private void goDeeper() {
 	    //schlechtere stacks können eigentlich keine besseren lösungen produzieren
-		if(avoidWorseStacks && btStack.size() > minPathLength)
+		if(avoidWorseStacks && btStack.size() > bestPathLength)
 			return;
 	    //über limit?
 	    if(stackDepthLimit > 0 && btStack.size() > stackDepthLimit)
@@ -211,7 +211,7 @@ public class Solver {
 	}
 
 	public int getBestPathLength() {
-		return minPathLength;
+		return bestPathLength;
 	}
 
 	public int getWorstStack() {
@@ -222,7 +222,7 @@ public class Solver {
 		return avoidWorseStacks;
 	}
 
-	public List<IMove> getStepList() {
+	public synchronized List<IMove> getStepList() {
 		ArrayList<IMove> steps = new ArrayList<IMove>();
 
 		for (Backtrack backtrack : btStack) {

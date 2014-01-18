@@ -12,6 +12,8 @@ public class BoardView extends JComponent {
     private final Board board;
 
     public BoardView(Board b) {
+		assert(b != null);
+
         board = b;
     }
 

@@ -4,7 +4,7 @@ import com.github.users.schlabberdog.blocks.mccs.Rect;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-public class RectUtilTest {
+public class RectTest {
 
     @Test
     public void testIntersection() throws Exception {

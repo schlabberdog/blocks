@@ -6,7 +6,7 @@ import com.github.users.schlabberdog.blocks.mccs.Coord;
 import com.github.users.schlabberdog.blocks.solver.ISolutionChecker;
 import com.github.users.schlabberdog.blocks.ui.IGame;
 
-public class W32Game implements IGame {
+public class W32Game implements IGame, ISolutionChecker {
 
 	private final Block rblock = new RedBlock();
 
@@ -32,18 +32,18 @@ public class W32Game implements IGame {
 
 	@Override
 	public ISolutionChecker getChecker() {
-		return new ISolutionChecker() {
-			@Override
-			public boolean checkBoard(Board b) {
-				Coord rcoord = b.getBlockCoord(rblock);
-				//gelöst ist das ganze, wenn sich der rblock mit origin bei 1,4 befindet
-				return (rcoord.x == 1 && rcoord.y == 4);
-			}
-		};
+		return this;
 	}
 
     @Override
     public String getTitle() {
         return "Web-Rätsel w32";
     }
+
+	@Override
+	public boolean checkBoard(Board board) {
+		Coord rcoord = board.getBlockCoord(rblock);
+		//gelöst ist das ganze, wenn sich der rblock mit origin bei 1,4 befindet
+		return (rcoord.x == 1 && rcoord.y == 4);
+	}
 }
