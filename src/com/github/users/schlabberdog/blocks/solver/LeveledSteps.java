@@ -20,6 +20,13 @@ class LeveledSteps {
         steps.put(hash,level);
     }
 
+	public synchronized boolean pushOnLevelOrDefault(String hash, int level) {
+		if(containsOnBetterLevel(hash,level))
+			return false;
+		steps.put(hash,level);
+		return true;
+	}
+
     /**
      * Prüft ob es den Step bereits gegeben hat UND ob er auf einem höheren Level passiert ist
      * @param nextHash Der Hash (Step)
@@ -34,4 +41,19 @@ class LeveledSteps {
         }
         return false;
     }
+
+	/**
+	 * Prüft ob es den Step bereits gegeben hat UND ob er auf diesem oder einem höheren Level passiert ist
+	 * @param nextHash Der Hash (Step)
+	 * @param myLevel  Das Level, dass verglichen werden soll
+	 * @return True, wenn es nextHash schon gibt und sein Level besser oder gleich ist wie myLevel
+	 */
+	public synchronized boolean containsOnBetterOrSameLevel(String nextHash, int myLevel) {
+		Integer oldLevel = steps.get(nextHash);
+		if(oldLevel != null) {
+			if(oldLevel <= myLevel)
+				return true;
+		}
+		return false;
+	}
 }

@@ -14,21 +14,17 @@ import java.io.StringWriter;
 import java.util.List;
 
 public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
-    private BoardView boardView;
-    private JButton stepButton;
     private JPanel root;
     private JLabel checkCountLabel;
-    private JLabel stackLabel;
     private JButton fastForwardButton;
-    private JButton nextButton;
     private JLabel numSolutionsLabel;
     private JLabel solImprovLabel;
     private JLabel bestPathLabel;
-    private JSpinner pathStopLength;
     private JSpinner stackLimiterSpinner;
 	private JLabel worstStackLabel;
 	private JCheckBox avoidWorseCheckbox;
 	private JLabel timeTakenLabel;
+	private JSpinner numThreadsSpinner;
 
 	private final Board board;
     private final Solver solver;
@@ -42,7 +38,6 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 
 	private Thread solverThread;
 	private boolean isSolverRunning = false;
-	private int stopAtCount = 0;
 
     private IJGUI(Board b,Solver s) {
 	    this.board = b;
@@ -50,26 +45,15 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 
 	    initialState = board.getSave();
 
-        stepButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                doStep();
-            }
-        });
         fastForwardButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
 				startSolve();
             }
         });
-        nextButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                doNext();
-            }
-        });
 
-        pathStopLength.setModel(new SpinnerNumberModel(0,0,Integer.MAX_VALUE,1));
+
+        numThreadsSpinner.setModel(new SpinnerNumberModel(2, 1, Integer.MAX_VALUE, 1));
         stackLimiterSpinner.setModel(new SpinnerNumberModel(0,0, Integer.MAX_VALUE,1));
 
 	    timer = new Timer(50,new ActionListener() {
@@ -87,10 +71,7 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 
     public synchronized void validateButtons() {
 
-        boardView.repaint();
-
 	    checkCountLabel.setText(  String.format("%,d", solver.getCheckCount()));
-        stackLabel.setText(       String.format("%,d", solver.getStackDepth()));
         numSolutionsLabel.setText(String.format("%,d", solver.getSolutionCount()));
         solImprovLabel.setText(   String.format("%,d", solver.getSolutionImprovedCount()));
 	    worstStackLabel.setText(  String.format("%,d", solver.getWorstStack()));
@@ -107,34 +88,18 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 	    timeTakenLabel.setText(String.format("%02d:%02d:%02d.%03d", timeTaken, minutes, seconds, millis));
     }
 
-
-    public synchronized void doNext() {
-		//zuerst den button wieder deaktivieren
-		nextButton.setEnabled(false);
-		pathStopLength.setEnabled(false);
-
-		if(isSolverRunning) {
-			//ggf. veränderten wert erneut kopieren
-			stopAtCount = ((Number)pathStopLength.getValue()).intValue();
-			//die uhr weiterlaufen lassen
-			stopwatch.start();
-			//dann den solver auch weiter laufen lassen
-			solverThread.interrupt();
-		}
-    }
-
     public synchronized void startSolve() {
         //gui deaktivieren
         fastForwardButton.setEnabled(false);
         stackLimiterSpinner.setEnabled(false);
         avoidWorseCheckbox.setEnabled(false);
-		pathStopLength.setEnabled(false);
+		numThreadsSpinner.setEnabled(false);
 		//uhr zurücksetzen
 		stopwatch.reset();
         //werte kopieren
         solver.setStackDepthLimit(((Number) stackLimiterSpinner.getValue()).intValue());
+		solver.setNumThreads(((Number) numThreadsSpinner.getValue()).intValue());
         solver.setAvoidWorseStacks(avoidWorseCheckbox.isSelected());
-		stopAtCount = ((Number)pathStopLength.getValue()).intValue();
         //für den solver benutzen wir einen eigenen Thread
 		solverThread = new Thread(new Runnable() {
             @Override
@@ -147,12 +112,8 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 
     }
 
-    public synchronized void doStep() {
-
-    }
 
     private void createUIComponents() {
-        boardView = new BoardView(board);
     }
 
     public static IJGUI Create(Board board, Solver solver) {
@@ -172,6 +133,7 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
         return gui;
     }
 
+	//region ISolverDelegate
 	@Override
 	public synchronized void solverStarted(Solver solver) {
 		timer.start();
@@ -182,36 +144,7 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 	@Override
 	public void solutionImproved(Solver solver, int solSize) {
 		//System.out.println("Better solution: "+solSize);
-		bestSolution = solver.getStepList();
-
-		//jetzt können wir den solver trappen, wenn er halten soll
-		if(stopAtCount > 0 && solver.getBestPathLength() <= stopAtCount) {
-			//zuerst mal die uhr anhalten
-			stopwatch.stop();
-			//lösung im GUI thread anzeigen
-			SwingUtilities.invokeLater(new Runnable() {
-				@Override
-				public void run() {
-					//anzeige der lösung starten
-					IJSolutionBrowser.Create(board.copy(),initialState,bestSolution);
-					//weiter button aktivieren
-					nextButton.setEnabled(true);
-					//verändern des halte-limits erlauben
-					pathStopLength.setEnabled(true);
-					//gui neu zeichnen
-					validateButtons();
-				}
-			});
-			//solver anhalten
-			try {
-				//noinspection InfiniteLoopStatement
-				while(true) {
-					Thread.sleep(1000); //jaja, wait() ist vieeeel cooler...
-				}
-			} catch (InterruptedException e) {
-				//die exception ist beabsichtigt, damit es weitergeht
-			}
-		}
+		bestSolution = solver.getBestStepList();
 	}
 
 	@Override
@@ -235,6 +168,7 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 		});
 
 	}
+	//endregion
 
 	private void stopRun() {
 		//jetzt brauchen wir den timer nicht mehr
@@ -245,6 +179,7 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 		isSolverRunning = false;
 	}
 
+	//region UncaughtExceptionHandler
 	@Override
 	public void uncaughtException(Thread thread, Throwable throwable) {
 		if(thread != solverThread) {
@@ -281,4 +216,5 @@ public class IJGUI implements ISolverDelegate, Thread.UncaughtExceptionHandler {
 			}
 		});
 	}
+	//endregion
 }

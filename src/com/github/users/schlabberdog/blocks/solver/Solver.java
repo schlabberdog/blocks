@@ -2,263 +2,189 @@ package com.github.users.schlabberdog.blocks.solver;
 
 
 import com.github.users.schlabberdog.blocks.board.Board;
-import com.github.users.schlabberdog.blocks.board.BoardSave;
 import com.github.users.schlabberdog.blocks.board.moves.IMove;
 
-
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Stack;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class Solver {
-    private final Board board;
-    private final ISolutionChecker checker;
+public class Solver implements ISolverSharedState {
+	private final Board board;
+	private final ISolutionChecker checker;
+	private final LeveledSteps steps = new LeveledSteps();
 
-	private ISolverDelegate delegate;
+	private ArrayList<SolverThread> solvers = new ArrayList<SolverThread>();
 
-    private long checkCount;
-    private int solutionCount;
-    private int solutionImprovedCount;
-    private int bestPathLength;
-	private int worstStack;
+	private AtomicInteger solversRunning = new AtomicInteger();
 
 	private boolean avoidWorseStacks = true;
 	private int stackDepthLimit = 0;
+	private ISolverDelegate delegate;
+	private int numThreads = 1;
+	private final Object _lockProperties = new Object();
 
-    /* In dem Array bewahren wir uns alle Schritte auf, die wir gemacht haben */
-    private LeveledSteps steps = new LeveledSteps();
+	private int solutionImprovedCount;
+	private int bestPathLength;
+	private List<IMove> bestStepList;
+	private final Object _lockBestPathLength = new Object();
 
-    private Stack<Backtrack> btStack = new Stack<Backtrack>();
 
-    public Solver(Board board, ISolutionChecker checker) {
-        this.board = board;
-        this.checker = checker;
-    }
 
-    public synchronized void solve() {
-	    solverStarted();
+	public Solver(Board board, ISolutionChecker checker) {
+		this.board = board;
+		this.checker = checker;
+	}
 
-        steps.clear();
-        btStack.clear();
-        checkCount = 0;
-        solutionCount = 0;
-        solutionImprovedCount = -1;
-	    worstStack = 0;
-	    bestPathLength = Integer.MAX_VALUE;
-        //ausgangssituation auf level 0 (ungschlagbar)
-        steps.pushOnLevel(board.getBoardHash(),0);
-        //um das ganze anzustoßen müssen wir zuerst die alternativen für Schritt 0 aufstellen
-        goDeeper();
+	public void solve() {
+		synchronized (_lockProperties) {
+			steps.clear();
+			solvers.clear();
+			synchronized (_lockBestPathLength) {
+				solutionImprovedCount = -1;
+				bestPathLength = Integer.MAX_VALUE;
+				bestStepList = null;
+			}
+			solversRunning.set(0);
 
-        while(true) {
-	        //solange wir noch alternativen haben...
-	        if (!goAnywhere())
-		        break;
-        }
-
-	    solverDone();
-    }
-
-    private boolean goAnywhere() {
-
-        if(btStack.isEmpty())
-            return false;
-        // vielleicht haben wir auf dieser ebene noch alternativen?
-        if(btStack.peek().alternatives.size() > 0) {
-
-            goRight();
-
-        }
-        //nein haben wir nicht, d.h. wir müssen eins zurück und nach rechts
-        else {
-            goUp();
-
-        }
-		return true;
-    }
-
-    private void goRight() {
-
-        //nach rechts gehen bedeutet:
-        Backtrack cur = btStack.peek();
-        // 1. board zum anfangswert dieses stack-levels resetten
-
-        board.applySave(cur.initialState);
-
-        // 2. alternative anwenden und verwerfen
-        IMove m = cur.alternatives.get(0);
-        cur.alternatives.remove(0);
-
-        board.applyMove(m);
-
-	    cur.selected = m;
-
-        goDeeper();
-    }
-
-	private void checkSolution() {
-		//prüfen wir, ob das was wir haben eine lösung ist
-		checkCount++;
-		if(checker.checkBoard(board)) {
-			solutionCount++;
-
-			int pathLength = (btStack.size() - 1); //-1 ist notwendig weil die ausgangsposition auch auf dem stack liegt
-
-			//uns interessieren nur lösungen, die besser sind als bereits bekannte
-			if(pathLength < bestPathLength) {
-				solutionImprovedCount++;
-				bestPathLength = pathLength;
-
-				solutionImproved(pathLength);
+			delegate_solverStarted();
+			//solver threads starten
+			for (int i = numThreads; i > 0; i--) {
+				SolverThread st = new SolverThread(this, board.copy());
+				solvers.add(st);
+				Thread t = new Thread(st);
+				t.start();
 			}
 		}
 	}
 
-
-    private void goDeeper() {
-	    //schlechtere stacks können eigentlich keine besseren lösungen produzieren
-		if(avoidWorseStacks && btStack.size() > bestPathLength)
-			return;
-	    //über limit?
-	    if(stackDepthLimit > 0 && btStack.size() > stackDepthLimit)
-			return;
-
-        //sicherung machen
-        BoardSave save = board.getSave();
-
-
-        //tiefergehen bedeutet:
-        // 1. alternativen aufstellen
-        ArrayList<IMove> alts = board.getAlternatives();
-
-
-        Iterator<IMove> mi = alts.iterator();
-        while(mi.hasNext()) {
-            IMove alt = mi.next();
-            //alt anwenden
-            board.applyMove(alt);
-            //hash holen
-            String nextHash = board.getBoardHash();
-            boolean removed = false;
-            //jetzt müssen wir vermeiden, dass diese situation einer situation entspricht die bereits im stack ist (= im kreis gelaufen)
-            if(steps.containsOnBetterLevel(nextHash,btStack.size()+1)) {
-                mi.remove();
-                removed = true;
-            }
-            else {
-                if(!btStack.empty()) {
-                    //es kann sein dass der zug die verlängerung des zuges ist, der uns hier hin gebracht hat
-                    //in dem fall muss der gemergte zug eine ebene hoch (weil es eben als ein zug möglich ist)
-                    IMove prevMove = btStack.peek().selected;
-                    //die grundlage für das merge bildet der vorherige zustand sonst kommt der falsche move bei raus
-                    board.applySave(btStack.peek().initialState);
-                    IMove merged = prevMove.mergeWith(alt);
-                    if(merged != null) {
-                        board.applyMove(merged);
-                        nextHash = board.getBoardHash();
-                        btStack.peek().alternatives.add(merged);
-                        steps.pushOnLevel(nextHash, btStack.size());
-                        mi.remove();
-                        removed = true;
-                    }
-                }
-            }
-            if(!removed) {
-                //bereits in dem moment wo wir die absicht haben eine alternative auf level X auszuführen sollte niemand
-                //auf level X+n das noch versuchen...
-                steps.pushOnLevel(nextHash, btStack.size()+1);
-            }
-
-            //sicherung anwenden
-            board.applySave(save);
-        }
-
-
-        // 3. board sichern, alternativen hinzufügen und hash speichern
-        btStack.push(new Backtrack(save,alts));
-
-        //lösung prüfen?
-        checkSolution();
-
-		if(btStack.size() > worstStack)
-			worstStack = btStack.size();
-
-    }
-
-    private void goUp() {
-
-        // 1. aktuellen stack verwerfen
-        btStack.pop();
-
-    }
-
-
 	public long getCheckCount() {
+		long checkCount = 0;
+		for (SolverThread solver : solvers) {
+			checkCount += solver.getCheckCount();
+		}
 		return checkCount;
 	}
 
-	public int getStackDepth() {
-		return (btStack.size() - 1);
-	}
-
 	public int getSolutionCount() {
+		int solutionCount = 0;
+		for (SolverThread solver : solvers) {
+			solutionCount += solver.getSolutionCount();
+		}
 		return solutionCount;
 	}
 
+	public int getWorstStack() {
+		int worstStack = 0;
+		for (SolverThread solver : solvers) {
+			if (solver.getWorstStack() > worstStack)
+				worstStack = solver.getWorstStack();
+		}
+		return worstStack;
+	}
+
 	public int getSolutionImprovedCount() {
-		return solutionImprovedCount;
+		synchronized (_lockBestPathLength) {
+			return solutionImprovedCount;
+		}
 	}
 
 	public int getBestPathLength() {
-		return bestPathLength;
-	}
-
-	public int getWorstStack() {
-		return worstStack;
+		synchronized (_lockBestPathLength) {
+			return bestPathLength;
+		}
 	}
 
 	public boolean shouldAvoidWorseStacks() {
 		return avoidWorseStacks;
 	}
 
-	public synchronized List<IMove> getStepList() {
-		ArrayList<IMove> steps = new ArrayList<IMove>();
-
-		for (Backtrack backtrack : btStack) {
-			IMove m = backtrack.selected;
-			if (m == null)
-				break;
-			steps.add(m);
+	public void setAvoidWorseStacks(boolean avoidWorseStacks) {
+		synchronized (_lockProperties) {
+			this.avoidWorseStacks = avoidWorseStacks;
 		}
-
-		return steps;
 	}
 
-	public synchronized void setDelegate(ISolverDelegate delegate) {
-		this.delegate = delegate;
-	}
-
-	public synchronized void setAvoidWorseStacks(boolean v) {
-		avoidWorseStacks = v;
-	}
-
-	private void solutionImproved(int solSize) {
-		if(delegate != null)
-			delegate.solutionImproved(this,solSize);
-	}
-
-	private void solverStarted() {
-		if(delegate != null)
-			delegate.solverStarted(this);
-	}
-
-	private void solverDone() {
-		if(delegate != null)
-			delegate.solverDone(this);
+	@Override
+	public int getStackDepthLimit() {
+		return stackDepthLimit;
 	}
 
 	public synchronized void setStackDepthLimit(int stackDepthLimit) {
-		this.stackDepthLimit = stackDepthLimit;
+		synchronized (_lockProperties) {
+			this.stackDepthLimit = stackDepthLimit;
+		}
+	}
+
+	public synchronized void setDelegate(ISolverDelegate delegate) {
+		synchronized (_lockProperties) {
+			this.delegate = delegate;
+		}
+	}
+
+	public synchronized void setNumThreads(int numThreads) {
+		synchronized (_lockProperties) {
+			this.numThreads = numThreads;
+		}
+	}
+
+	@Override
+	public LeveledSteps steps() {
+		return steps;
+	}
+
+	@Override
+	public void solutionImproved(SolverThread solverThread, int solSize) {
+		synchronized (_lockBestPathLength) {
+			//es kann passieren, dass ein solver sich zwar improved hat, aber ein anderer trotzdem schon besser war
+			if (solSize < bestPathLength) {
+				bestPathLength = solSize;
+				solutionImprovedCount++;
+				bestStepList = solverThread.getStepList();
+				delegate_solutionImproved(solSize);
+			}
+		}
+	}
+
+	public List<IMove> getBestStepList() {
+		synchronized (_lockBestPathLength) {
+			return bestStepList;
+		}
+	}
+
+	@Override
+	public void solverStarted(SolverThread solverThread) {
+		solversRunning.incrementAndGet();
+	}
+
+	@Override
+	public void solverDone(SolverThread solverThread) {
+		if (solversRunning.decrementAndGet() < 1)
+			delegate_solverDone();
+	}
+
+	@Override
+	public boolean checkBoard(Board board) {
+		return checker.checkBoard(board);
+	}
+
+	private void delegate_solverStarted() {
+		synchronized (_lockProperties) {
+			if (delegate != null)
+				delegate.solverStarted(this);
+		}
+	}
+
+	private void delegate_solutionImproved(int solSize) {
+		synchronized (_lockProperties) {
+			if (delegate != null)
+				delegate.solutionImproved(this, solSize);
+		}
+	}
+
+	private void delegate_solverDone() {
+		synchronized (_lockProperties) {
+			if (delegate != null)
+				delegate.solverDone(this);
+		}
 	}
 }

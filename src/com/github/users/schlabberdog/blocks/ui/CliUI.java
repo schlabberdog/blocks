@@ -83,7 +83,7 @@ public class CliUI implements ISolverDelegate {
 	public void solutionImproved(Solver solver, int solSize) {
 		System.out.println("<(Better) Solution Found in: " + solSize + " moves> (tried: " + solver.getCheckCount() + ")(solutions: " + solver.getSolutionCount() + ")");
 
-		List<IMove> steps = solver.getStepList();
+		List<IMove> steps = solver.getBestStepList();
 
 		setMoveList(steps);
 
